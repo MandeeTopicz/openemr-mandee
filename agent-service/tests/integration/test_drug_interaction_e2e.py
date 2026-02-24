@@ -56,7 +56,7 @@ def test_chat_endpoint_drug_interaction():
     """Full agent: ask about drug interaction, get real tool result."""
     from app.agent.graph import invoke_graph
 
-    response = invoke_graph(
+    response, _ = invoke_graph(
         "Check for drug interactions between lisinopril and ibuprofen"
     )
     assert response

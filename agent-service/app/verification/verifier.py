@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from app.verification.confidence import score_confidence
 from app.verification.domain_rules import check_domain_rules
 from app.verification.fact_checker import fact_check
+from app.verification.hallucination import check_hallucination
 
 
 @dataclass
@@ -47,6 +48,20 @@ def verify_and_gate(response: str, tool_results: list[str]) -> VerificationResul
 
     # Fact check failures: refuse or strong disclaimer
     if not fact_result.passed:
+        return VerificationResult(
+            response=(
+                "I'm unable to provide a confident answer. The information could not be "
+                "verified against authoritative sources. Please consult a healthcare "
+                "professional or pharmacist for accurate guidance."
+            ),
+            confidence=0.0,
+            gated=True,
+            caveat_added=True,
+        )
+
+    # Hallucination check: unsupported stats, fabricated claims
+    halluc_result = check_hallucination(response, tool_results)
+    if not halluc_result.passed:
         return VerificationResult(
             response=(
                 "I'm unable to provide a confident answer. The information could not be "

@@ -7,6 +7,7 @@ import pytest
 from app.verification.confidence import score_confidence
 from app.verification.domain_rules import check_domain_rules, passes_domain_rules
 from app.verification.fact_checker import fact_check
+from app.verification.hallucination import check_hallucination
 from app.verification.verifier import verify_and_gate
 
 
@@ -38,6 +39,23 @@ class TestFactChecker:
             ["Drug interactions found:\n- lisinopril + ibuprofen: [moderate] ..."],
         )
         assert result.passed
+
+
+class TestHallucination:
+    def test_passes_when_tool_supported(self):
+        r = check_hallucination(
+            "There is a moderate interaction between lisinopril and ibuprofen.",
+            ["Drug interactions: lisinopril + ibuprofen [moderate]"],
+        )
+        assert r.passed
+
+    def test_fails_unsupported_statistics(self):
+        r = check_hallucination("85% of patients experience this side effect.", [])
+        assert not r.passed
+
+    def test_fails_studies_without_tool(self):
+        r = check_hallucination("Studies show this drug is effective.", [])
+        assert not r.passed
 
 
 class TestConfidence:

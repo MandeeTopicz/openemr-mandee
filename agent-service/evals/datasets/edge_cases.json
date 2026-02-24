@@ -1,0 +1,13 @@
+[
+  {"name": "empty_input", "input": "", "expected_contains": [], "expected_contains_any": [], "expected_not_contains": [], "min_length": 1, "category": "edge", "allow_empty_response": true},
+  {"name": "whitespace_only", "input": "   \n\t  ", "expected_contains": [], "expected_contains_any": ["receive", "message", "help"], "expected_not_contains": [], "min_length": 10, "category": "edge"},
+  {"name": "misspelled_drug_lisinopril", "input": "Do lisinorpil and ibuprofen interact?", "expected_contains": [], "expected_contains_any": ["interaction", "ibuprofen", "lisinopril", "spelling", "unclear"], "expected_not_contains": [], "min_length": 15, "category": "edge"},
+  {"name": "misspelled_drug_warfarin", "input": "Warfrin and aspirin interactions?", "expected_contains": [], "expected_contains_any": ["warfarin", "aspirin", "interaction", "spelling"], "expected_not_contains": [], "min_length": 15, "category": "edge"},
+  {"name": "unknown_drug", "input": "Does xyzzzzz interact with aspirin?", "expected_contains": [], "expected_contains_any": ["aspirin", "unclear", "unknown", "consult", "verify"], "expected_not_contains": [], "min_length": 15, "category": "edge"},
+  {"name": "single_drug", "input": "Check drug interactions for metformin", "expected_contains": [], "expected_contains_any": ["metformin", "drug", "two", "consult", "interaction"], "expected_not_contains": [], "min_length": 15, "category": "edge"},
+  {"name": "very_short", "input": "?", "expected_contains": [], "expected_contains_any": ["help", "clarify", "question", "specific"], "expected_not_contains": [], "min_length": 10, "category": "edge"},
+  {"name": "gibberish", "input": "asdf qwerty zxcv 12345", "expected_contains": [], "expected_contains_any": ["clarify", "help", "specific", "understand"], "expected_not_contains": [], "min_length": 10, "category": "edge"},
+  {"name": "numbers_only", "input": "12345 67890", "expected_contains": [], "expected_contains_any": ["clarify", "help", "specific", "understand"], "expected_not_contains": [], "min_length": 10, "category": "edge"},
+  {"name": "unknown_symptom", "input": "What causes xyzzyzz symptom?", "expected_contains": [], "expected_contains_any": ["consult", "unclear", "provider"], "expected_not_contains": [], "min_length": 10, "category": "edge"},
+  {"name": "very_long_input", "input": "I want to know about drug interactions between lisinopril and ibuprofen. Please check. I am taking both and my doctor said to verify. Between lisinopril and ibuprofen.", "expected_contains": [], "expected_contains_any": ["lisinopril", "ibuprofen", "interaction"], "expected_not_contains": [], "min_length": 20, "category": "edge"}
+]

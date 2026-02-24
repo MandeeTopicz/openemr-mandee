@@ -25,6 +25,15 @@ class ChatResponse(BaseModel):
 
     response: str = Field(..., description="Agent response text")
     session_id: str | None = Field(default=None, description="Session ID for follow-up turns")
+    run_id: str | None = Field(default=None, description="LangSmith run ID for feedback linking")
+
+
+class FeedbackRequest(BaseModel):
+    """Request body for the /chat/feedback endpoint."""
+
+    run_id: str = Field(..., description="LangSmith run ID from the chat response")
+    score: float = Field(..., ge=0, le=1, description="1=thumbs up, 0=thumbs down")
+    comment: str | None = Field(default=None, description="Optional comment")
 
 
 class HealthResponse(BaseModel):

@@ -11,6 +11,7 @@ Requires agent service running (uvicorn or similar).
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -44,21 +45,36 @@ def run_single(
     min_length = case.get("min_length", 1)
     allow_empty = case.get("allow_empty_response", False)
 
-    try:
-        resp = client.post(
-            f"{base_url.rstrip('/')}/chat",
-            json={"message": user_input},
-            timeout=60.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        response_text = data.get("response", "")
-    except httpx.HTTPStatusError as e:
-        return False, "", f"HTTP {e.response.status_code}: {e.response.text[:200]}"
-    except httpx.RequestError as e:
-        return False, "", f"Request failed: {e}"
-    except json.JSONDecodeError as e:
-        return False, "", f"Invalid JSON: {e}"
+    max_retries = 3
+    last_error = None
+
+    for attempt in range(max_retries):
+        try:
+            resp = client.post(
+                f"{base_url.rstrip('/')}/chat",
+                json={"message": user_input},
+                timeout=60.0,
+            )
+            if resp.status_code == 429 and attempt < max_retries - 1:
+                time.sleep(30)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            response_text = data.get("response", "")
+            break
+        except httpx.HTTPStatusError as e:
+            last_error = e
+            if e.response.status_code == 429 and attempt < max_retries - 1:
+                time.sleep(30)
+                continue
+            return False, "", f"HTTP {e.response.status_code}: {e.response.text[:200]}"
+        except httpx.RequestError as e:
+            return False, "", f"Request failed: {e}"
+        except json.JSONDecodeError as e:
+            return False, "", f"Invalid JSON: {e}"
+    # Exhausted retries on 429 (should not reach here; last 429 attempt returns above)
+    if last_error:
+        return False, "", f"HTTP 429 (rate limit) after {max_retries} retries: {last_error.response.text[:200]}"
 
     # Allow empty/short response for edge cases
     if allow_empty:
@@ -92,8 +108,13 @@ def main() -> int:
     parser.add_argument(
         "--dataset",
         type=Path,
-        default=_PROJECT_ROOT / "evals" / "datasets" / "mvp.json",
-        help="Path to dataset JSON",
+        default=None,
+        help="Path to dataset JSON (default: mvp.json)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Run all datasets in evals/datasets/ (correctness, edge_cases, adversarial, multi_step)",
     )
     parser.add_argument(
         "--url",
@@ -106,14 +127,40 @@ def main() -> int:
         action="store_true",
         help="Print full response for each case",
     )
+    parser.add_argument(
+        "--langsmith",
+        action="store_true",
+        help="Log eval summary to LangSmith for historical tracking",
+    )
+    parser.add_argument(
+        "--min-pass-rate",
+        type=float,
+        default=None,
+        metavar="RATE",
+        help="Pass if passed/total >= RATE (e.g. 0.8 for 80%%). Default: require all to pass.",
+    )
     args = parser.parse_args()
 
-    if not args.dataset.exists():
-        print(f"Dataset not found: {args.dataset}")
-        return 1
+    if args.all:
+        datasets_dir = _PROJECT_ROOT / "evals" / "datasets"
+        dataset_paths = sorted(datasets_dir.glob("*.json"))
+        if not dataset_paths:
+            print(f"No datasets found in {datasets_dir}")
+            return 1
+    else:
+        dataset_path = args.dataset or (_PROJECT_ROOT / "evals" / "datasets" / "mvp.json")
+        if not dataset_path.exists():
+            print(f"Dataset not found: {dataset_path}")
+            return 1
+        dataset_paths = [dataset_path]
 
-    cases = load_dataset(args.dataset)
-    print(f"Running {len(cases)} test cases from {args.dataset}")
+    all_cases: list[tuple[Path, dict]] = []
+    for p in dataset_paths:
+        for c in load_dataset(p):
+            all_cases.append((p, c))
+
+    cases = [c for _, c in all_cases]
+    print(f"Running {len(cases)} test cases from {len(dataset_paths)} dataset(s)")
     print(f"Agent URL: {args.url}\n")
 
     passed = 0
@@ -143,6 +190,24 @@ def main() -> int:
                 print(f"       Response: {preview!r}\n")
 
     print(f"\n--- Results: {passed} passed, {failed} failed of {len(cases)} total ---")
+
+    if args.langsmith:
+        try:
+            from app.observability.metrics import log_eval_summary
+
+            dataset_name = "+".join(p.stem for p in dataset_paths)
+            log_eval_summary(passed=passed, failed=failed, total=len(cases), dataset_name=dataset_name)
+            print("  (Eval summary logged to LangSmith)")
+        except Exception as e:
+            print(f"  (LangSmith log skipped: {e})")
+
+    if args.min_pass_rate is not None:
+        rate = passed / len(cases) if cases else 0.0
+        if rate >= args.min_pass_rate:
+            print(f"  Pass rate {rate:.1%} >= {args.min_pass_rate:.0%} (gate passed)")
+            return 0
+        print(f"  Pass rate {rate:.1%} < {args.min_pass_rate:.0%} (gate failed)")
+        return 1
     return 0 if failed == 0 else 1
 
 

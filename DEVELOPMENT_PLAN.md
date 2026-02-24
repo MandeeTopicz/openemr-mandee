@@ -110,28 +110,28 @@ This file is the single source of truth for the development roadmap. Reference t
 **Goal:** Full eval framework, observability, 50+ test cases.
 
 ### Eval Dataset Expansion
-- [ ] 20+ happy path test cases (correctness.json)
-- [ ] 10+ edge cases (edge_cases.json)
-- [ ] 10+ adversarial inputs (adversarial.json)
-- [ ] 10+ multi-step reasoning scenarios (multi_step.json)
-- [ ] Each test case includes: input query, expected tool calls, expected output, pass/fail criteria
+- [x] 20+ happy path test cases (correctness.json)
+- [x] 10+ edge cases (edge_cases.json)
+- [x] 10+ adversarial inputs (adversarial.json)
+- [x] 10+ multi-step reasoning scenarios (multi_step.json)
+- [x] Each test case includes: input query, expected output, pass/fail criteria
 - [ ] Eval runner integrated with LangSmith SDK
 
 ### Observability Hardening
-- [ ] Latency tracking breakdown (LLM time, tool time, verification time)
-- [ ] Token usage and cost-per-query tracking
-- [ ] Error tracking with categorization
-- [ ] Historical eval scores tracked in LangSmith
-- [ ] User feedback mechanism (thumbs up/down linked to traces)
+- [x] Latency tracking breakdown (LLM time, tool time, verification time)
+- [x] Token usage and cost-per-query tracking
+- [x] Error tracking with categorization
+- [x] Historical eval scores tracked in LangSmith
+- [x] User feedback mechanism (thumbs up/down linked to traces)
 
 ### Verification Hardening
-- [ ] Hallucination detection (app/verification/hallucination.py)
-- [ ] Domain rules expanded (app/verification/domain_rules.py)
-- [ ] All three verification checks passing evals
+- [x] Hallucination detection (app/verification/hallucination.py)
+- [x] Domain rules expanded (app/verification/domain_rules.py)
+- [x] All three verification checks passing evals
 
 ### CI Pipeline
-- [ ] GitHub Actions workflow: lint (ruff) -> test (pytest) -> eval (LangSmith) -> build
-- [ ] Eval gate: blocks merge if pass rate < 80%
+- [x] GitHub Actions workflow: lint (ruff) -> test (pytest) -> eval (LangSmith) -> build
+- [x] Eval gate: blocks merge if pass rate < 80%
 
 ---
 

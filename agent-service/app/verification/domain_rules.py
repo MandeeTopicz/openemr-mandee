@@ -21,6 +21,9 @@ _DIAGNOSE_PATTERNS = [
     (re.compile(r"\b(?:your|the) (?:diagnosis|condition) is\s+\w+", re.I), "diagnosis_statement"),
     (re.compile(r"\bi (?:diagnose|diagnosed)\s+", re.I), "diagnose_verb"),
     (re.compile(r"\bthis (?:is|means) (?:a |an )?\w+ (?:diagnosis|disease|condition)", re.I), "diagnosis_implication"),
+    (re.compile(r"\byou (?:are|appear to be) (?:diagnosed with|suffering from)\s+\w+", re.I), "diagnosis_assertion"),
+    (re.compile(r"\bbased on (?:your )?(?:symptoms|presentation), (?:you have|it is)\s+\w+", re.I), "symptom_to_diagnosis"),
+    (re.compile(r"\b(?:your|the) (?:illness|disease) is\s+\w+", re.I), "illness_statement"),
 ]
 
 _PRESCRIBE_PATTERNS = [
@@ -28,6 +31,10 @@ _PRESCRIBE_PATTERNS = [
     (re.compile(r"\bprescribe\s+(?:you )?\d+", re.I), "prescribe_dosage"),
     (re.compile(r"\bi (?:prescribe|recommend) (?:taking )?\d+", re.I), "prescribe_recommend"),
     (re.compile(r"\b(?:take|use) \d+\s*(?:mg|ml|mcg)\s+(?:once|twice|daily)", re.I), "dosage_schedule"),
+    (re.compile(r"\b(?:you need to|you ought to) (?:take|use) \d+", re.I), "dosage_necessity"),
+    (re.compile(r"\bstart (?:with |on )?\d+\s*(?:mg|ml|mcg)", re.I), "dosage_start"),
+    (re.compile(r"\b(?:recommended|suggested) (?:dose|dosage):?\s*\d+", re.I), "recommended_dose"),
+    (re.compile(r"\b\d+\s*(?:mg|ml|mcg)\s+(?:po|oral|by mouth)\b", re.I), "dosage_route"),
 ]
 
 
