@@ -167,8 +167,8 @@ services:
       LDAP_TLS_KEY_FILENAME: server-key.pem
   agent:
     build:
-      context: ../..
-      dockerfile: agent-service/Dockerfile
+      context: ../../agent-service
+      dockerfile: Dockerfile
     restart: always
     ports:
     - 8000:8000
@@ -178,7 +178,7 @@ services:
       OPENEMR_FHIR_BASE_URL: 'http://openemr/apis/default/fhir'
       OPENEMR_FHIR_VERIFY_SSL: 'false'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       start_period: 10s
       interval: 30s
       timeout: 5s
