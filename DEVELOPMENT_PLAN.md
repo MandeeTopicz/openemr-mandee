@@ -140,39 +140,39 @@ This file is the single source of truth for the development roadmap. Reference t
 **Goal:** Production-ready, all tools, open source release.
 
 ### Post-MVP Tools
-- [ ] patient_summary (app/tools/patient_summary.py)
-- [ ] lab_results_lookup (app/tools/lab_results.py)
-- [ ] medication_list (app/tools/medication_list.py)
-- [ ] Each follows same base class pattern as MVP tools
+- [x] patient_summary (app/tools/patient_summary.py)
+- [x] lab_results_lookup (app/tools/lab_results_lookup.py)
+- [x] medication_list (app/tools/medication_list.py)
+- [x] Each follows same base class pattern as MVP tools
 
 ### Multi-Step Workflows
-- [ ] Agent chains 3+ tools in single query
-- [ ] Intermediate verification between tool calls
-- [ ] Partial results returned on tool failure
-- [ ] Latency target: < 15 seconds for 3+ tool chains
+- [x] Agent chains 3+ tools in single query (ReAct agent)
+- [ ] Intermediate verification between tool calls (current: verification at final response)
+- [x] Partial results returned on tool failure (tool errors returned as text to agent)
+- [ ] Latency target: < 15 seconds for 3+ tool chains (tracked in metrics)
 
 ### Adversarial Hardening
-- [ ] Prompt injection attempts blocked
-- [ ] Jailbreak attempts blocked
-- [ ] Data exfiltration attempts blocked
-- [ ] System prompt reveal attempts blocked
+- [x] Prompt injection attempts blocked (adversarial evals + domain rules)
+- [x] Jailbreak attempts blocked
+- [x] Data exfiltration attempts blocked
+- [x] System prompt reveal attempts blocked
 
 ### Performance
-- [ ] Single-tool queries: < 5 seconds
-- [ ] Multi-step queries: < 15 seconds
+- [ ] Single-tool queries: < 5 seconds (target; tracked in LangSmith)
+- [ ] Multi-step queries: < 15 seconds (target; tracked in LangSmith)
 - [ ] Tool success rate: > 95%
-- [ ] Eval pass rate: > 80%
+- [x] Eval pass rate: > 80% (CI gate)
 
 ### Deployment
-- [ ] Docker Compose production config
+- [x] Docker Compose production config (docker-compose.agent.yml)
 - [ ] Publicly accessible demo with sample data
-- [ ] Health monitoring operational
+- [x] Health monitoring operational (GET /health, healthcheck in compose)
 
 ### Open Source Release
-- [ ] README with quickstart (Docker Compose one-command setup)
-- [ ] Architecture doc in repo
-- [ ] API reference for agent service endpoints
-- [ ] Tool development guide (how to add new tools)
+- [x] README with quickstart (Docker Compose one-command setup)
+- [x] Architecture doc in repo (docs/OpenEMR_Agent_Architecture.md)
+- [x] API reference for agent service endpoints (agent-service/docs/API_REFERENCE.md)
+- [x] Tool development guide (how to add new tools) (agent-service/docs/TOOL_DEVELOPMENT.md)
 - [ ] Eval dataset published (CC BY 4.0)
 - [ ] Module compatible with OpenEMR upstream (GPL-2.0)
 

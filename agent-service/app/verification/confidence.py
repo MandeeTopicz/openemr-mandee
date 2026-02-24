@@ -33,10 +33,11 @@ def score_confidence(
         score -= 0.4 * len(domain_violations)
         score = max(0.0, score)
 
-    # Tool coverage: no tools used for medical query can reduce confidence
-    # But we don't always need tools (e.g. greeting)
-    if not fact_result.tool_used and _looks_medical(response):
-        score = min(score, 0.85)  # Slight reduction for medical response without tool
+    # Tool coverage: only penalize when the response appears to claim tool-backed
+    # data (e.g. drug interaction, patient-specific results) but no tools were used.
+    # General medical knowledge (e.g. "What is hypertension?") does not need tools.
+    if not fact_result.tool_used and _looks_medical(response) and _looks_tool_dependent(response):
+        score = min(score, 0.85)
 
     return max(0.0, min(1.0, round(score, 2)))
 
@@ -50,3 +51,25 @@ def _looks_medical(text: str) -> bool:
     )
     t = text.lower()
     return any(w in t for w in medical_words)
+
+
+def _looks_tool_dependent(response: str) -> bool:
+    """
+    True if the response appears to claim data that should have come from a tool
+    (e.g. drug interaction result, patient labs, your medications).
+    General educational content (e.g. defining hypertension) returns False.
+    """
+    t = response.lower()
+    # Claims about a specific interaction between named drugs should use drug_interaction_check
+    if "interaction" in t and ("between" in t or "and" in t):
+        if any(d in t for d in ("lisinopril", "ibuprofen", "warfarin", "aspirin", "metformin", "amoxicillin")):
+            return True
+    # Patient-specific or "your" results
+    if "your " in t and ("result" in t or "lab" in t or "medication" in t or "coverage" in t):
+        return True
+    if "patient's " in t or "patient " in t and ("result" in t or "lab" in t):
+        return True
+    # Possible causes / triage usually from symptom_lookup
+    if "possible causes" in t or "urgency" in t and "symptom" in t:
+        return True
+    return False

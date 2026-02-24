@@ -103,3 +103,34 @@ def search_coverage(patient_id: str | None = None) -> dict[str, Any] | None:
 def get_patient(patient_id: str) -> dict[str, Any] | None:
     """Get a single Patient by ID."""
     return fhir_get("Patient", resource_id=patient_id)
+
+
+def search_observations(
+    patient_id: str | None = None,
+    category: str | None = None,
+    code: str | None = None,
+    _count: int = 50,
+) -> dict[str, Any] | None:
+    """Search Observation resources (e.g. lab results)."""
+    params: dict[str, str | int] = {"_count": _count}
+    if patient_id:
+        params["patient"] = patient_id
+    if category:
+        params["category"] = category
+    if code:
+        params["code"] = code
+    return fhir_get("Observation", params=params)
+
+
+def search_medication_requests(
+    patient_id: str | None = None,
+    status: str | None = None,
+    _count: int = 100,
+) -> dict[str, Any] | None:
+    """Search MedicationRequest resources for a patient's medication list."""
+    params: dict[str, str | int] = {"_count": _count}
+    if patient_id:
+        params["subject"] = f"Patient/{patient_id}"
+    if status:
+        params["status"] = status
+    return fhir_get("MedicationRequest", params=params)

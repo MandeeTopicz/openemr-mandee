@@ -19,6 +19,12 @@ from app.tools.insurance_coverage import (
 from app.tools.insurance_coverage import (
     insurance_coverage as _insurance_coverage,
 )
+from app.tools.lab_results_lookup import LabResultsLookupInput
+from app.tools.lab_results_lookup import lab_results_lookup as _lab_results_lookup
+from app.tools.medication_list import MedicationListInput
+from app.tools.medication_list import medication_list as _medication_list
+from app.tools.patient_summary import PatientSummaryInput
+from app.tools.patient_summary import patient_summary as _patient_summary
 from app.tools.provider_search import ProviderSearchInput
 from app.tools.provider_search import provider_search as _provider_search
 from app.tools.symptom_lookup import SymptomLookupInput
@@ -183,6 +189,82 @@ def _build_insurance_coverage_tool() -> StructuredTool:
     )
 
 
+def _format_patient_summary_result(data: dict) -> str:
+    if not data.get("success"):
+        return f"Error: {data.get('error', 'Unknown error')}"
+    return data.get("summary", "No summary.") + f"\n\nSource: {data.get('source', '')}"
+
+
+def _run_patient_summary(patient_id: str) -> str:
+    result = _patient_summary(patient_id=patient_id)
+    return _format_patient_summary_result(result)
+
+
+def _build_patient_summary_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_patient_summary,
+        name="patient_summary",
+        description="Get a brief, privacy-safe summary of a patient record from OpenEMR. Use when the user asks about a patient overview or demographics (no PII returned). Input: patient_id (required).",
+        args_schema=PatientSummaryInput,
+    )
+
+
+def _format_lab_results_result(data: dict) -> str:
+    if not data.get("success"):
+        return f"Error: {data.get('error', 'Unknown error')}"
+    results = data.get("results", [])
+    if not results:
+        return f"No lab results found for patient {data.get('patient_id', '')}.\nSource: {data.get('source', '')}"
+    lines = [f"- {r['code']}: {r['value']} (date: {r['date']}, status: {r['status']})" for r in results]
+    return "Lab results:\n" + "\n".join(lines) + f"\n\nSource: {data.get('source', '')}"
+
+
+def _run_lab_results_lookup(patient_id: str, code: str | None = None, limit: int = 20) -> str:
+    result = _lab_results_lookup(patient_id=patient_id, code=code, limit=limit)
+    return _format_lab_results_result(result)
+
+
+def _build_lab_results_lookup_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_lab_results_lookup,
+        name="lab_results_lookup",
+        description="Look up laboratory results for a patient from OpenEMR. Use when the user asks about labs, test results, or specific values (e.g. glucose, hemoglobin). Input: patient_id (required), optional code filter, optional limit.",
+        args_schema=LabResultsLookupInput,
+    )
+
+
+def _format_medication_list_result(data: dict) -> str:
+    if not data.get("success"):
+        return f"Error: {data.get('error', 'Unknown error')}"
+    meds = data.get("medications", [])
+    if not meds:
+        return f"No medications found for patient {data.get('patient_id', '')}.\nSource: {data.get('source', '')}"
+    lines = [f"- {m['name']}: {m['dose']} (status: {m['status']})" for m in meds]
+    return "Medications:\n" + "\n".join(lines) + f"\n\nSource: {data.get('source', '')}"
+
+
+def _run_medication_list(
+    patient_id: str,
+    include_discontinued: bool = False,
+    limit: int = 50,
+) -> str:
+    result = _medication_list(
+        patient_id=patient_id,
+        include_discontinued=include_discontinued,
+        limit=limit,
+    )
+    return _format_medication_list_result(result)
+
+
+def _build_medication_list_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_medication_list,
+        name="medication_list",
+        description="Get current medication list for a patient from OpenEMR. Use when the user asks about medications, current drugs, or what a patient is taking. Input: patient_id (required), optional include_discontinued, optional limit.",
+        args_schema=MedicationListInput,
+    )
+
+
 def get_tools() -> list[StructuredTool]:
     """Return list of tools for the agent."""
     return [
@@ -191,4 +273,7 @@ def get_tools() -> list[StructuredTool]:
         _build_provider_search_tool(),
         _build_appointment_check_tool(),
         _build_insurance_coverage_tool(),
+        _build_patient_summary_tool(),
+        _build_lab_results_lookup_tool(),
+        _build_medication_list_tool(),
     ]

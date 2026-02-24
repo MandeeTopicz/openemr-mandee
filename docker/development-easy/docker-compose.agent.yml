@@ -1,0 +1,22 @@
+# CareTopicz Agent only — for production or when OpenEMR runs elsewhere.
+# Usage: docker compose -f docker-compose.agent.yml up -d
+# Set ANTHROPIC_API_KEY, OPENEMR_FHIR_BASE_URL, OPENEMR_FHIR_TOKEN, CORS_ORIGINS in .env or env.
+
+services:
+  agent:
+    build:
+      context: ../../agent-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENEMR_FHIR_BASE_URL=${OPENEMR_FHIR_BASE_URL:-https://localhost:9300/apis/default/fhir}
+      - OPENEMR_FHIR_TOKEN=${OPENEMR_FHIR_TOKEN:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8300,https://localhost:9300}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

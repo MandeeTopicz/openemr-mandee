@@ -81,12 +81,40 @@ Deploy the full stack to a cloud provider for a persistent public URL.
 
 ---
 
-## Health Check
+## Production Docker Compose (agent only)
 
-- **Agent**: `GET /health` → `{"status":"healthy","service":"CareTopicz Agent"}`
+For deploying only the agent service (e.g. alongside an existing OpenEMR instance):
+
+```yaml
+# docker-compose.agent.yml — agent + Redis (optional)
+services:
+  agent:
+    build: ./agent-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENEMR_FHIR_BASE_URL=${OPENEMR_FHIR_BASE_URL}
+      - OPENEMR_FHIR_TOKEN=${OPENEMR_FHIR_TOKEN}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8300}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+```
+
+Build and run: `docker compose -f docker-compose.agent.yml up -d`. Set env vars in `.env` or the host.
+
+---
+
+## Health Check & Monitoring
+
+- **Agent**: `GET /health` → `{"status":"healthy","service":"CareTopicz Agent","version":"0.1.0"}`
 - **OpenEMR**: `GET /meta/health/readyz` (or your deployment health endpoint)
 
-Use these for load balancer or platform health probes.
+Use these for load balancer or platform health probes. For operational monitoring, use LangSmith (when `LANGCHAIN_TRACING_V2=true`) for latency, token usage, and error tracking.
 
 ---
 

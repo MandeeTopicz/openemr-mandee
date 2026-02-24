@@ -1,14 +1,25 @@
 # CareTopicz Agent Service
 
-Python FastAPI sidecar for OpenEMR — AI clinical assistant with drug interaction checks, symptom analysis, and more.
+Python FastAPI sidecar for OpenEMR — AI clinical assistant with drug interaction checks, symptom analysis, provider search, appointments, insurance, patient summary, lab results, and medication lists.
 
 ## Quick Start
+
+**Option 1 — One-command (Docker Compose, with OpenEMR):**
+
+```bash
+cd docker/development-easy
+docker compose up -d
+# OpenEMR: http://localhost:8300  |  Agent health: http://localhost:8000/health
+```
+
+**Option 2 — Local Python:**
 
 ```bash
 cd agent-service
 python -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
+# Set ANTHROPIC_API_KEY in .env
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -46,6 +57,9 @@ GitHub Actions (`.github/workflows/agent-ci.yml`) runs on push/PR when `agent-se
 
 Eval locally with gate: `python evals/runner.py --all --min-pass-rate 0.8`
 
-## Development
+## Documentation
 
-See [DEVELOPMENT_PLAN.md](../DEVELOPMENT_PLAN.md) and `/docs` for full project plan.
+- [API Reference](docs/API_REFERENCE.md) — `/health`, `/chat`, `/chat/feedback`
+- [Tool Development Guide](docs/TOOL_DEVELOPMENT.md) — How to add a new tool
+- [DEVELOPMENT_PLAN.md](../DEVELOPMENT_PLAN.md) — Roadmap and phases
+- [docs/OpenEMR_Agent_Architecture.md](../docs/OpenEMR_Agent_Architecture.md) — System architecture
