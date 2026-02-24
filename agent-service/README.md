@@ -29,22 +29,44 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ## Evals
 
-Run test cases against the agent (service must be running):
+Evaluation datasets and runner for testing the agent. **Total: 61 test cases** across 5 datasets.
+
+**Datasets:** [evals/datasets/](evals/datasets/) — all eval JSON files:
+
+| File | Description | Count |
+|------|-------------|-------|
+| [correctness.json](evals/datasets/correctness.json) | Happy-path correctness | 22 |
+| [edge_cases.json](evals/datasets/edge_cases.json) | Edge cases | 11 |
+| [adversarial.json](evals/datasets/adversarial.json) | Adversarial inputs | 10 |
+| [multi_step.json](evals/datasets/multi_step.json) | Multi-step scenarios | 10 |
+| [mvp.json](evals/datasets/mvp.json) | MVP smoke tests | 8 |
+
+**Categories:** 22 correctness, 11 edge cases, 10 adversarial, 10 multi-step, 8 MVP.
+
+**License:** Datasets are under [CC BY 4.0](evals/datasets/LICENSE.md).
+
+### How to run
+
+Agent service must be running (e.g. `uvicorn app.main:app --host 0.0.0.0 --port 8000`).
 
 ```bash
 cd agent-service
-uvicorn app.main:app --host 0.0.0.0 --port 8000 &  # start agent
-python evals/runner.py                    # MVP only (8 cases)
-python evals/runner.py --all              # All 60+ cases (correctness, edge, adversarial, multi_step)
-python evals/runner.py --dataset evals/datasets/correctness.json --verbose
+# All 61 cases
+python evals/runner.py --all
+
+# With LangSmith logging (traces for each run)
+python evals/runner.py --all --langsmith
+
+# With 80% pass-rate gate (fails if below; used in CI)
+python evals/runner.py --all --min-pass-rate 0.8
 ```
 
-Datasets in `evals/datasets/`:
-- `mvp.json` — 8 MVP cases
-- `correctness.json` — 22 happy path
-- `edge_cases.json` — 11 edge cases
-- `adversarial.json` — 10 adversarial inputs
-- `multi_step.json` — 10 multi-step scenarios
+Single dataset / MVP only:
+
+```bash
+python evals/runner.py                                    # MVP only (8 cases)
+python evals/runner.py --dataset evals/datasets/correctness.json --verbose
+```
 
 ## CI
 
