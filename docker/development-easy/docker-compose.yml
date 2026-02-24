@@ -91,8 +91,11 @@ services:
       OPENEMR_SETTING_SMTP_Auth: 'TRUE'
       OPENEMR_SETTING_practice_return_email_path: 'noreply@openemr.local'
       OPENEMR_SETTING_Patient_Reminder_Sender_Name: 'OpenEMR Reminders'
+      OPENEMR_AI_AGENT_URL: 'http://agent:8000'
     depends_on:
       mysql:
+        condition: service_healthy
+      agent:
         condition: service_healthy
     healthcheck:
       test:
@@ -162,6 +165,34 @@ services:
       LDAP_TLS_CA_CRT_FILENAME: ca.pem
       LDAP_TLS_CRT_FILENAME: server-cert.pem
       LDAP_TLS_KEY_FILENAME: server-key.pem
+  agent:
+    build:
+      context: ../..
+      dockerfile: agent-service/Dockerfile
+    restart: always
+    ports:
+    - 8000:8000
+    env_file:
+    - ../../agent-service/.env
+    environment:
+      OPENEMR_FHIR_BASE_URL: 'http://openemr/apis/default/fhir'
+      OPENEMR_FHIR_VERIFY_SSL: 'false'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      start_period: 10s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  redis:
+    restart: always
+    image: redis:7-alpine
+    ports:
+    - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
   mailpit:
     restart: unless-stopped
     image: axllent/mailpit:latest
