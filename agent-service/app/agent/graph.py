@@ -8,8 +8,8 @@ Task 6: Verification layer (fact check, confidence, domain rules) gates response
 import time
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from langsmith import traceable
 from langgraph.prebuilt import create_react_agent
+from langsmith import traceable
 
 from app.agent.nodes.reasoning import create_model
 from app.agent.prompts.system import SYSTEM_PROMPT

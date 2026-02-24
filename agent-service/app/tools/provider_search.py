@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.npi import search_npi
-from app.clients.openemr import search_practitioners, search_practitioner_roles
+from app.clients.openemr import search_practitioners
 
 
 class ProviderSearchInput(BaseModel):

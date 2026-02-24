@@ -38,7 +38,6 @@ def check_hallucination(response: str, tool_results: list[str]) -> Hallucination
     """
     issues: list[str] = []
     combined_tools = " ".join(tool_results).lower() if tool_results else ""
-    resp_lower = response.lower()
 
     # Unsupported statistics (e.g. "85% of patients") - tools rarely provide these
     for m in _UNSUPPORTED_STATISTICS.finditer(response):

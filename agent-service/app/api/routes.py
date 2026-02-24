@@ -50,7 +50,11 @@ async def chat(request: Request):
             ) from e
         raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
-        from app.observability.metrics import RequestMetrics, categorize_error, update_langsmith_run_metadata
+        from app.observability.metrics import (
+            RequestMetrics,
+            categorize_error,
+            update_langsmith_run_metadata,
+        )
 
         m = RequestMetrics(error_category=categorize_error(e), error_message=str(e))
         try:

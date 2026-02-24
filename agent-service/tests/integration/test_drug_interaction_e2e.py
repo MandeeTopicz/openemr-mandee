@@ -8,7 +8,6 @@ Requires: ANTHROPIC_API_KEY in .env (skipped if not set)
 import os
 
 import pytest
-
 from app.tools.drug_interaction import drug_interaction_check
 from app.tools.drug_interactions_data import check_interaction
 

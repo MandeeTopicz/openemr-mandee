@@ -5,7 +5,7 @@ Calls Claude to generate a response from the conversation messages.
 """
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 
 from app.agent.prompts.system import SYSTEM_PROMPT
 from app.agent.state import AgentState

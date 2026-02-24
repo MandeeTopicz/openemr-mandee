@@ -15,9 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 _agent_root = Path(__file__).resolve().parent.parent
 load_dotenv(_agent_root / ".env")
 
-from app.api.routes import router
-from app.config import settings
-from app.observability.langsmith import is_tracing_enabled, setup_langsmith
+from app.api.routes import router  # noqa: E402
+from app.config import settings  # noqa: E402
+from app.observability.langsmith import is_tracing_enabled, setup_langsmith  # noqa: E402
 
 
 @asynccontextmanager

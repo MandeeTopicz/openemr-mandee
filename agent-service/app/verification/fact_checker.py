@@ -5,7 +5,6 @@ Compares LLM response claims against tool results to detect hallucinations.
 """
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass

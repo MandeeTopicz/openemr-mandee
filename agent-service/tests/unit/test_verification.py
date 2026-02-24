@@ -2,10 +2,9 @@
 CareTopicz Agent Service - Unit tests for verification layer.
 """
 
-import pytest
 
 from app.verification.confidence import score_confidence
-from app.verification.domain_rules import check_domain_rules, passes_domain_rules
+from app.verification.domain_rules import passes_domain_rules
 from app.verification.fact_checker import fact_check
 from app.verification.hallucination import check_hallucination
 from app.verification.verifier import verify_and_gate

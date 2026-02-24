@@ -37,7 +37,6 @@ def run_single(
     """
     Run one test case. Returns (passed, response, reason).
     """
-    name = case.get("name", "unnamed")
     user_input = case.get("input", "")
     expected_contains = case.get("expected_contains", [])
     expected_contains_any = case.get("expected_contains_any", [])

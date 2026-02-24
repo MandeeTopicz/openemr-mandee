@@ -6,7 +6,7 @@ and error categorization. Integrates with LangSmith run metadata.
 """
 
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 # Anthropic pricing per 1M tokens (USD, approximate - update as needed)
