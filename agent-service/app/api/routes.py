@@ -9,7 +9,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Request
 
 from app.agent.graph import invoke_graph
-from app.api.schemas import ChatResponse, FeedbackRequest, HealthResponse
+from app.api.schemas import ChatResponse, FeedbackRequest, HealthResponse, ToolUsed
 from app.config import settings
 
 router = APIRouter()
@@ -41,7 +41,7 @@ async def chat(request: Request):
         )
 
     try:
-        response_text, metrics = await asyncio.to_thread(invoke_graph, msg)
+        response_text, metrics, tools_used = await asyncio.to_thread(invoke_graph, msg)
     except ValueError as e:
         if "ANTHROPIC_API_KEY" in str(e):
             raise HTTPException(
@@ -71,6 +71,7 @@ async def chat(request: Request):
         response=response_text,
         session_id=body.get("session_id"),
         run_id=metrics.run_id,
+        tools_used=[ToolUsed(name=t["name"], summary=t["summary"]) for t in tools_used],
     )
 
 

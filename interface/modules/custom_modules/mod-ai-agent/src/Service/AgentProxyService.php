@@ -43,7 +43,7 @@ class AgentProxyService
      *
      * @param string $message User message
      * @param string|null $sessionId Optional session ID
-     * @return array{response: string, session_id: string|null} Agent response
+     * @return array{response: string, session_id: string|null, run_id: string|null, tools_used: list<array{name: string, summary: string}>} Agent response
      * @throws \RuntimeException On HTTP or parse error
      */
     public function chat(string $message, ?string $sessionId = null): array
@@ -69,9 +69,23 @@ class AgentProxyService
             throw new \RuntimeException("Invalid agent response format");
         }
 
+        $toolsUsed = [];
+        if (!empty($data['tools_used']) && is_array($data['tools_used'])) {
+            foreach ($data['tools_used'] as $t) {
+                if (is_array($t) && isset($t['name'])) {
+                    $toolsUsed[] = [
+                        'name' => (string) $t['name'],
+                        'summary' => isset($t['summary']) ? (string) $t['summary'] : '',
+                    ];
+                }
+            }
+        }
+
         return [
             'response' => (string) $data['response'],
             'session_id' => $data['session_id'] ?? null,
+            'run_id' => $data['run_id'] ?? null,
+            'tools_used' => $toolsUsed,
         ];
     }
 

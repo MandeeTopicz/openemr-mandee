@@ -66,6 +66,33 @@ def _extract_response_and_tool_results(messages: list) -> tuple[str, list[str]]:
     return (response, tool_results)
 
 
+def _extract_tools_used(messages: list, max_summary_len: int = 120) -> list[dict]:
+    """
+    Extract tool name and brief summary for each tool call from message history.
+    Returns list of {"name": str, "summary": str} in call order.
+    """
+    id_to_name: dict[str, str] = {}
+    for m in messages:
+        if isinstance(m, AIMessage) and getattr(m, "tool_calls", None):
+            for tc in m.tool_calls:
+                tid = tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", None)
+                tname = tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", "tool")
+                if tid:
+                    id_to_name[tid] = tname or "tool"
+
+    tools_used: list[dict] = []
+    for m in messages:
+        if isinstance(m, ToolMessage):
+            content = m.content if hasattr(m, "content") else str(m)
+            tid = getattr(m, "tool_call_id", None)
+            name = id_to_name.get(tid, "tool") if tid else "tool"
+            summary = (content or "").strip()
+            if len(summary) > max_summary_len:
+                summary = summary[: max_summary_len - 3] + "..."
+            tools_used.append({"name": name, "summary": summary or "Completed."})
+    return tools_used
+
+
 @traceable(name="invoke_graph")
 def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tuple[str, RequestMetrics]:
     """
@@ -84,9 +111,10 @@ def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tu
 
     messages = result.get("messages", [])
     response, tool_results = _extract_response_and_tool_results(messages)
+    tools_used = _extract_tools_used(messages)
     if not response:
         m.total_ms = (time.perf_counter() - t_total) * 1000
-        return "I couldn't generate a response. Please try again.", m
+        return "I couldn't generate a response. Please try again.", m, tools_used
 
     t_verif = time.perf_counter()
     verified = verify_and_gate(response, tool_results)
@@ -112,4 +140,4 @@ def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tu
     except Exception:
         pass
 
-    return verified.response, m
+    return verified.response, m, tools_used

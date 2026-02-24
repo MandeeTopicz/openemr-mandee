@@ -106,6 +106,35 @@ class ChatWidgetController
                 margin-top: 0.5rem;
                 padding: 0.4rem 1rem;
             }
+            .ctz-chat-tools {
+                margin-top: 0.5rem;
+                font-size: 0.8rem;
+            }
+            .ctz-chat-tools-toggle {
+                background: none;
+                border: none;
+                color: var(--primary, #0d6efd);
+                cursor: pointer;
+                padding: 0.25rem 0;
+                text-align: left;
+                width: 100%;
+            }
+            .ctz-chat-tools-toggle:hover { text-decoration: underline; }
+            .ctz-chat-tools-toggle::before { content: '\25B6\00A0'; }
+            .ctz-chat-tools-toggle.open::before { content: '\25BC\00A0'; }
+            .ctz-chat-tools-list {
+                display: none;
+                list-style: none;
+                margin: 0.25rem 0 0 0;
+                padding-left: 0;
+            }
+            .ctz-chat-tools-list.open { display: block; }
+            .ctz-chat-tools-list li {
+                border-left: 2px solid #dee2e6;
+                margin-bottom: 0.35rem;
+                padding: 0.2rem 0 0.2rem 0.5rem;
+            }
+            .ctz-chat-tools-list .ctz-tool-name { font-weight: 600; }
         </style>
         <button type="button" class="ctz-chat-fab" id="ctz-chat-fab" title="<?php echo xla('CareTopicz AI Assistant'); ?>">
             <i class="fa fa-comments"></i>
@@ -127,19 +156,48 @@ class ChatWidgetController
             const sendBtn = document.getElementById('ctz-chat-send');
             const chatUrl = <?php echo json_encode($chatUrl); ?>;
             const csrf = <?php echo json_encode($csrfToken); ?>;
+            const toolsCalledLabel = <?php echo json_encode(xlt('Tools Called')); ?>;
 
             fab?.addEventListener('click', function() {
                 panel.classList.toggle('open');
                 if (panel.classList.contains('open')) input.focus();
             });
 
-            function addMsg(role, text) {
+            function escapeHtml(s) {
+                const el = document.createElement('span');
+                el.textContent = s;
+                return el.innerHTML;
+            }
+
+            function addMsg(role, text, toolsUsed) {
                 const div = document.createElement('div');
                 div.className = 'ctz-chat-msg ' + role;
                 const bubble = document.createElement('div');
                 if (role === 'assistant') bubble.className = 'bubble';
                 bubble.innerHTML = text.replace(/\n/g, '<br>');
                 div.appendChild(bubble);
+                if (role === 'assistant' && Array.isArray(toolsUsed) && toolsUsed.length > 0) {
+                    const toolsWrap = document.createElement('div');
+                    toolsWrap.className = 'ctz-chat-tools';
+                    const toggle = document.createElement('button');
+                    toggle.type = 'button';
+                    toggle.className = 'ctz-chat-tools-toggle';
+                    toggle.textContent = toolsCalledLabel + ' (' + toolsUsed.length + ')';
+                    const list = document.createElement('ul');
+                    list.className = 'ctz-chat-tools-list';
+                    toolsUsed.forEach(function(t) {
+                        const li = document.createElement('li');
+                        li.innerHTML = '<span class="ctz-tool-name">' + escapeHtml(t.name || '') + '</span>: ' + escapeHtml(t.summary || '');
+                        list.appendChild(li);
+                    });
+                    toggle.addEventListener('click', function() {
+                        toggle.classList.toggle('open');
+                        list.classList.toggle('open');
+                    });
+                    toolsWrap.appendChild(toggle);
+                    toolsWrap.appendChild(list);
+                    div.appendChild(toolsWrap);
+                }
                 messages.appendChild(div);
                 messages.scrollTop = messages.scrollHeight;
             }
@@ -161,7 +219,7 @@ class ChatWidgetController
                     body: JSON.stringify({ message: msg, csrf_token: csrf }),
                     credentials: 'same-origin'
                 }).then(r => r.json()).then(data => {
-                    addMsg('assistant', data.response || data.error || 'No response.');
+                    addMsg('assistant', data.response || data.error || 'No response.', data.tools_used || []);
                 }).catch(() => {
                     addMsg('assistant', 'Unable to reach the assistant. Please try again.');
                 }).finally(() => { sendBtn.disabled = false; });
