@@ -79,6 +79,25 @@ GitHub Actions (`.github/workflows/agent-ci.yml`) runs on push/PR when `agent-se
 
 Eval locally with gate: `python evals/runner.py --all --min-pass-rate 0.8`
 
+## Performance requirements
+
+| Requirement | Target | How to verify |
+|-------------|--------|----------------|
+| Single-tool queries | < 5 s | Run `python evals/timed_queries.py` (agent must be running with valid `ANTHROPIC_API_KEY`) |
+| Tool success rate | > 95% | Tracked in evals and LangSmith; review eval failures and tool errors |
+| Eval pass rate | > 80% | `python evals/runner.py --all --min-pass-rate 0.8` (CI gate) |
+| Health check | Responds | `GET /health` returns 200 and `{"status":"healthy",...}` |
+
+**Timed queries script** — Runs three single-tool prompts and reports response time for each:
+
+```bash
+cd agent-service
+# Agent must be running with valid ANTHROPIC_API_KEY in .env
+python evals/timed_queries.py --url http://localhost:8000
+```
+
+Sample queries: drug interaction (ibuprofen + aspirin), symptom lookup (chest pain, shortness of breath), provider search (cardiologist in New York).
+
 ## Documentation
 
 - [API Reference](docs/API_REFERENCE.md) — `/health`, `/chat`, `/chat/feedback`

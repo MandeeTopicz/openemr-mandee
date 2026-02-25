@@ -44,7 +44,8 @@ class Bootstrap
         $pageId = $event->getPageId();
         $this->logger->error("AIAgent: PageHeadingRenderEvent fired", ['page_id' => $pageId]);
 
-        if (!in_array($pageId, ['core.mrd', 'core.main']) && $pageId !== 'patient-portal') {
+        $allowedPageIds = ['core.mrd', 'core.main', 'patient-portal', 'unknown'];
+        if (!in_array($pageId, $allowedPageIds, true)) {
             $this->logger->error("AIAgent: Skipping - page_id not matched", ['page_id' => $pageId]);
             return $event;
         }
