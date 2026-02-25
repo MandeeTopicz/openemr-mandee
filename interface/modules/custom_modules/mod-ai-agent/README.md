@@ -53,3 +53,13 @@ If the widget works locally but not on a deployed server (e.g. GCP):
    docker compose exec openemr tail -f /var/log/apache2/error.log
    ```
    The Bootstrap logs "AIAgent: PageHeadingRenderEvent fired" and either "Appended chat widget" or "Skipping - page_id not matched" at error level to aid debugging.
+
+5. **502 Bad Gateway on chat / "AI assistant is temporarily unavailable"**  
+   The chat widget calls `mod-ai-agent/public/chat.php`, which proxies to the CareTopicz agent service. A 502 means the proxy could not get a valid response from the agent. On a deployed instance (e.g. GCP):
+
+   - **Agent must be running** on the same host or a reachable host (e.g. `uvicorn app.main:app --host 0.0.0.0 --port 8000` or the agent container in Docker).
+   - **Agent URL must be correct** from the OpenEMR server’s perspective:
+     - **Docker Compose:** Use `OPENEMR_AI_AGENT_URL=http://agent:8000` (service name) so the OpenEMR container can reach the agent container.
+     - **Same VM, separate process:** Use `http://localhost:8000` or set the global `ai_agent_base_url` in Administration → Config.
+     - **Different host:** Use the full URL (e.g. `http://agent-host:8000`). Ensure firewall/security groups allow the OpenEMR server to reach the agent port.
+   - From the OpenEMR server (or OpenEMR container), run: `curl -s http://AGENT_URL/health` and confirm you get `{"status":"healthy",...}`.

@@ -94,6 +94,25 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     <title><?php echo text($openemr_name); ?></title>
 
     <script>
+        // Polyfill crypto.randomUUID for non-secure contexts (e.g. HTTP on non-localhost). Required by some scripts (e.g. Google GSI, i18next).
+        (function() {
+            var c = typeof crypto !== 'undefined' ? crypto : {};
+            if (typeof c.randomUUID !== 'function') {
+                c.randomUUID = function randomUUID() {
+                    var bytes = new Uint8Array(16);
+                    if (typeof c.getRandomValues === 'function') {
+                        c.getRandomValues(bytes);
+                    } else {
+                        for (var i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+                    }
+                    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+                    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+                    var h = function(b) { var x = b.toString(16); return x.length === 1 ? '0' + x : x; };
+                    return [h(bytes[0]),h(bytes[1]),h(bytes[2]),h(bytes[3]),'-',h(bytes[4]),h(bytes[5]),'-',h(bytes[6]),h(bytes[7]),'-',h(bytes[8]),h(bytes[9]),'-',h(bytes[10]),h(bytes[11]),h(bytes[12]),h(bytes[13]),h(bytes[14]),h(bytes[15])].join('');
+                };
+            }
+            if (typeof crypto === 'undefined') { window.crypto = c; }
+        })();
         // This is to prevent users from losing data by refreshing or backing out of OpenEMR.
         //  (default behavior, however, this behavior can be turned off in the prevent_browser_refresh global)
         <?php if ($GLOBALS['prevent_browser_refresh'] > 0) { ?>
