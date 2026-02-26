@@ -177,8 +177,8 @@ class ChatWidgetController
                     <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Do lisinopril and ibuprofen interact?'); ?>"><?php echo xlt('Do lisinopril and ibuprofen interact?'); ?></button>
                     <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('What conditions are associated with chest pain and shortness of breath?'); ?>"><?php echo xlt('What conditions are associated with chest pain and shortness of breath?'); ?></button>
                     <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Check lisinopril and potassium, then find a primary care provider near Boston.'); ?>"><?php echo xlt('Check lisinopril and potassium, then find a primary care provider near Boston.'); ?></button>
-                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Find a cardiologist near Austin'); ?>"><?php echo xlt('Find a cardiologist near Austin'); ?></button>
-                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('What is metformin?'); ?>"><?php echo xlt('What is metformin?'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Find a cardiologist in Austin that takes Medicare'); ?>"><?php echo xlt('Find a cardiologist in Austin that takes Medicare'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Generate a patient handout for Type 2 diabetes'); ?>"><?php echo xlt('Generate a patient handout for Type 2 diabetes'); ?></button>
                 </div>
             </div>
             <div class="ctz-chat-input-area">

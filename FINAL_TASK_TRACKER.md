@@ -220,4 +220,5 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 - **Task 11:** SOCIAL_POST.md created.
 - **Priority A:** A1, A2, A3 done.
 - **Priority B:** B1, B2 done (76 eval cases, 100% pass rate); B3 metrics dashboard skipped/deferred.
+- **Final submission features (post-tracker):** Feature 1 — Insurance/provider network lookup (`insurance_provider_search`); Feature 2 — Patient education handout generator (`patient_education_generator`). New evals in correctness.json and multi_step.json; starter queries and DEMO_SCRIPT updated.
 - **All tasks complete.**

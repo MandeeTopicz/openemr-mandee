@@ -27,12 +27,20 @@ from app.tools.insurance_coverage import (
 from app.tools.insurance_coverage import (
     insurance_coverage as _insurance_coverage,
 )
+from app.tools.insurance_provider_search import (
+    InsuranceProviderSearchInput,
+    insurance_provider_search as _insurance_provider_search,
+)
 from app.tools.lab_results_lookup import LabResultsLookupInput
 from app.tools.lab_results_lookup import lab_results_lookup as _lab_results_lookup
 from app.tools.medication_list import MedicationListInput
 from app.tools.medication_list import medication_list as _medication_list
 from app.tools.patient_summary import PatientSummaryInput
 from app.tools.patient_summary import patient_summary as _patient_summary
+from app.tools.patient_education_generator import (
+    PatientEducationInput,
+    patient_education_generator as _patient_education_generator,
+)
 from app.tools.provider_search import ProviderSearchInput
 from app.tools.provider_search import provider_search as _provider_search
 from app.tools.symptom_lookup import SymptomLookupInput
@@ -134,6 +142,57 @@ def _build_provider_search_tool() -> StructuredTool:
         name="provider_search",
         description="Search for healthcare providers by name, specialty, or location. Use when the user wants to find a doctor, specialist, or provider. Input: search query (e.g. 'cardiologist Austin', 'Dr. Smith'), optional limit.",
         args_schema=ProviderSearchInput,
+    )
+
+
+def _format_insurance_provider_search_result(data: dict) -> str:
+    if not data.get("success"):
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
+    providers = data.get("providers", [])
+    note = data.get("insurance_note", "")
+    if not providers:
+        return (
+            f"No providers found for {data.get('specialty') or 'any specialty'} "
+            f"in {data.get('location') or 'any location'}.\n\n{note}"
+        )
+    lines = []
+    for p in providers:
+        parts = [f"- {p.get('name', 'Unknown')}"]
+        if p.get("npi"):
+            parts.append(f"NPI: {p['npi']}")
+        if p.get("specialty"):
+            parts.append(f"Specialty: {p['specialty']}")
+        if p.get("city") and p.get("state"):
+            parts.append(f"Location: {p['city']}, {p['state']}")
+        parts.append(f"(Source: {p.get('source', '')})")
+        lines.append(" ".join(parts))
+    return (
+        f"Insurance: {data.get('insurance_plan', '')}. "
+        f"Providers found:\n" + "\n".join(lines) + f"\n\n{note}"
+    )
+
+
+def _run_insurance_provider_search(
+    insurance_plan: str,
+    specialty: str = "",
+    location: str = "",
+    limit: int = 10,
+) -> str:
+    result = _insurance_provider_search(
+        insurance_plan=insurance_plan,
+        specialty=specialty,
+        location=location,
+        limit=limit,
+    )
+    return _format_insurance_provider_search_result(result)
+
+
+def _build_insurance_provider_search_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_insurance_provider_search,
+        name="insurance_provider_search",
+        description="Find providers by specialty and location who may accept a given insurance. Use when the user asks which providers accept an insurance (e.g. Medicare, Aetna, Blue Cross) or 'find a cardiologist that takes X'. Input: insurance_plan (required), optional specialty, optional location, optional limit.",
+        args_schema=InsuranceProviderSearchInput,
     )
 
 
@@ -273,15 +332,51 @@ def _build_medication_list_tool() -> StructuredTool:
     )
 
 
+def _format_patient_education_result(data: dict) -> str:
+    """Format patient education template for LLM to generate handout content."""
+    if not data.get("success"):
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
+    parts = [
+        data.get("instructions", ""),
+        "Sections to include: " + "; ".join(data.get("required_sections", [])),
+        data.get("format_note", ""),
+    ]
+    return "\n\n".join(parts)
+
+
+def _run_patient_education_generator(
+    condition: str,
+    reading_level: str = "general",
+    language: str = "English",
+) -> str:
+    result = _patient_education_generator(
+        condition=condition,
+        reading_level=reading_level,
+        language=language,
+    )
+    return _format_patient_education_result(result)
+
+
+def _build_patient_education_generator_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_patient_education_generator,
+        name="patient_education_generator",
+        description="Generate a structured patient education handout for a condition or topic. Use when the user asks for a handout, take-home sheet, or patient education document. Input: condition (required), optional reading_level (simple/general/detailed), optional language.",
+        args_schema=PatientEducationInput,
+    )
+
+
 def get_tools() -> list[StructuredTool]:
     """Return list of tools for the agent."""
     return [
         _build_drug_interaction_tool(),
         _build_symptom_lookup_tool(),
         _build_provider_search_tool(),
+        _build_insurance_provider_search_tool(),
         _build_appointment_check_tool(),
         _build_insurance_coverage_tool(),
         _build_patient_summary_tool(),
         _build_lab_results_lookup_tool(),
         _build_medication_list_tool(),
+        _build_patient_education_generator_tool(),
     ]
