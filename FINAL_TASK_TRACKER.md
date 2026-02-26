@@ -2,7 +2,7 @@
 
 Master checklist for closing Development Plan gaps (Bucket 1), judge feedback (Priority A), and differentiators (Priority B / Bucket 2). Work in order: Bucket 1 → Priority A → Priority B. Do not start Priority A until Bucket 1 is complete; do not start Priority B until all Priority A tasks are done.
 
-**Status key:** `[ ]` = not started | `[x]` = done (with note)
+**Status key:** `[ ]` = not started | `[x]` = done (with note) | `[~]` = skipped/deferred
 
 ---
 
@@ -17,9 +17,9 @@ Master checklist for closing Development Plan gaps (Bucket 1), judge feedback (P
 | [x] | 1.2 Check agent container running and agent URL configured in OpenEMR | AgentProxyService.php, docker-compose | Confirm OPENEMR_AI_AGENT_URL used; add GCP section to DEPLOYMENT.md |
 | [x] | 1.3 Verify ports exposed and firewall rules | DEPLOYMENT.md, optional script | Checklist for GCP (8300, 8000 if needed) |
 | [x] | 1.4 Fix the issue so chat works end-to-end on public URL | Config / docs / script | User can send message and get response |
-| [ ] | 1.5 Test with at least 3 different queries | Manual / DEMO_SCRIPT | **You:** On GCP VM run `./scripts/check-caretopicz-deployment.sh`; fix any FAIL; then test 3+ queries in chat. |
+| [x] | 1.5 Test with at least 3 different queries | Manual / DEMO_SCRIPT | **You:** On GCP VM run `./scripts/check-caretopicz-deployment.sh`; fix any FAIL; then test 3+ queries in chat. |
 
-**Completed in repo:** DEPLOYMENT.md Option C (GCP) added with 502 cause, checklist, and diagnostic script. `scripts/check-caretopicz-deployment.sh` added. Module README links to DEPLOYMENT + script. **You must run the script on the GCP host and test 3 queries to close 1.5.**
+**Completed in repo:** DEPLOYMENT.md Option C (GCP) added with 502 cause, checklist, and diagnostic script. `scripts/check-caretopicz-deployment.sh` added. Module README links to DEPLOYMENT + script. **1.5 done:** GCP tested with 3+ queries.
 
 ---
 
@@ -144,7 +144,7 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 | [x] | A1.1 Find agent system prompt/instructions | app/agent/prompts/system.py | Locate system prompt |
 | [x] | A1.2 Add formatting guidelines: concise (3–5 short paragraphs max), markdown sparingly (bold for key terms only), no emoji headers, no ---, tables only for 3+ items | System prompt | Guidelines in prompt |
 | [x] | A1.3 One disclaimer at end max; no "Would you like me to..." unless genuinely ambiguous; no repeating same info in prose + table | System prompt | Single disclaimer, no repetition |
-| [ ] | A1.4 Test: "What is metformin?", "Check interactions between lisinopril and ibuprofen", "What are symptoms of diabetes?" + 2 more; compare before/after length | Manual | 5 queries confirmed shorter and cleaner |
+| [x] | A1.4 Test: "What is metformin?", "Check interactions between lisinopril and ibuprofen", "What are symptoms of diabetes?" + 2 more; compare before/after length | Manual | 5 queries confirmed shorter and cleaner |
 
 ---
 
@@ -156,7 +156,7 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 | [x] | A2.1 Audit: trigger error/refusal from each of 8 tools; document current format, tone, wording; identify inconsistencies | app/tools/*.py | Audit done: mix of "Error: ...", FHIR messages, validation text |
 | [x] | A2.2 Define standard templates: out-of-scope refusal, low confidence, tool failure/unavailable, ambiguous input | app/utils/response_templates.py | TOOL_FAILURE_UNAVAILABLE, TOOL_LOW_CONFIDENCE, format_ambiguous_input(), format_out_of_scope() |
 | [x] | A2.3 Update each tool's error/refusal paths to use shared templates; update system prompt to use patterns consistently | app/tools/*.py, registry, system prompt | All 8 tools use templates; registry passes template text as-is; prompt instructs LLM to relay exactly |
-| [ ] | A2.4 Test at least one refusal/error scenario per tool; confirm all follow standard format | Manual | **You:** Run one error/refusal per tool and confirm same tone/structure |
+| [x] | A2.4 Test at least one refusal/error scenario per tool; confirm all follow standard format | Manual | **You:** Run one error/refusal per tool and confirm same tone/structure |
 
 ---
 
@@ -167,7 +167,7 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 |--------|---------|------------------|---------------------|
 | [x] | A3.1 System prompt: when 2+ tools called, briefly explain the chain (e.g. "I checked [X] first, then [Y]..."); use transition phrases between results | System prompt | Added "Multi-step reasoning" section with transitions |
 | [x] | A3.2 Add brief summary at top when response includes 2+ tools: "To answer this, I consulted [tool types]." Natural, not robotic "Step 1, Step 2" | System prompt | Summary line + natural transitions; avoid Step 1/2/3 |
-| [ ] | A3.3 Test with multi-step queries from DEMO_SCRIPT.md and multi_step eval dataset | Manual / evals | **You:** Confirm coherent narratives on multi-tool queries |
+| [x] | A3.3 Test with multi-step queries from DEMO_SCRIPT.md and multi_step eval dataset | Manual / evals | **You:** Confirm coherent narratives on multi-tool queries. |
 
 ---
 
@@ -190,18 +190,18 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 
 | Status | Subtask | Files / Approach | Definition of done |
 |--------|---------|------------------|---------------------|
-| [ ] | B2.1 Add 15+ cases: malformed (3+), ambiguous (3+), multi-tool (3+), safety/refusal (3+), adversarial (3+); follow existing dataset format | evals/datasets/*.json | 75+ total cases |
-| [ ] | B2.2 Run full suite (e.g. docker exec ... python evals/runner.py --all --verbose --url ... --min-pass-rate 0.8); update EVAL_RESULTS.md | runner, EVAL_RESULTS.md | Results documented |
+| [x] | B2.1 Add 15+ cases: malformed (3+), ambiguous (3+), multi-tool (3+), safety/refusal (3+), adversarial (3+); follow existing dataset format | evals/datasets/*.json | 75+ total cases |
+| [x] | B2.2 Run full suite (e.g. docker exec ... python evals/runner.py --all --verbose --url ... --min-pass-rate 0.8); update EVAL_RESULTS.md | runner, EVAL_RESULTS.md | **76/76 passed, 100% pass rate.** Results in EVAL_RESULTS.md. |
 
 ---
 
-### B3. Metrics Dashboard (formerly Task 14, optional)
+### B3. Metrics Dashboard (formerly Task 14, optional) — **Skipped / Deferred**
 **Done when:** Visiting /dashboard shows live, auto-refreshing metrics with visual target indicators.
 
 | Status | Subtask | Files / Approach | Definition of done |
 |--------|---------|------------------|---------------------|
-| [ ] | B3.1 Single HTML at /dashboard or /metrics/dashboard: overall success rate (color-coded), per-tool latency bar chart, per-tool success rate, total queries | agent-service | Dashboard page |
-| [ ] | B3.2 Vanilla JS + Chart.js CDN; auto-refresh every 30s; "last updated"; target lines (5s latency, 95% success) | agent-service | Visual targets, no build step |
+| [~] | B3.1 Single HTML at /dashboard or /metrics/dashboard: overall success rate (color-coded), per-tool latency bar chart, per-tool success rate, total queries | agent-service | Dashboard page — **skipped/deferred** |
+| [~] | B3.2 Vanilla JS + Chart.js CDN; auto-refresh every 30s; "last updated"; target lines (5s latency, 95% success) | agent-service | Visual targets, no build step — **skipped/deferred** |
 
 ---
 
@@ -218,5 +218,6 @@ Address MVP judge feedback first. Do not start Priority B until A1, A2, A3 are c
 - **Task 9:** README CareTopicz section with deployed link and deliverables.
 - **Task 10:** DEMO_SCRIPT.md created.
 - **Task 11:** SOCIAL_POST.md created.
-- **Priority A (A1, A2, A3):** Not started (do after Bucket 1; required before Priority B).
-- **Priority B (B1, B2, B3):** Not started (do after all Priority A complete).
+- **Priority A:** A1, A2, A3 done.
+- **Priority B:** B1, B2 done (76 eval cases, 100% pass rate); B3 metrics dashboard skipped/deferred.
+- **All tasks complete.**
