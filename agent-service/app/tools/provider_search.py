@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.npi import search_npi
-from app.clients.openemr import search_practitioners
+from app.clients.openemr import search_practitioners, search_providers_direct
 from app.utils.response_templates import format_ambiguous_input
 
 # Map common search terms to NPI taxonomy descriptions
@@ -91,33 +91,45 @@ def provider_search(query: str, limit: int = 10) -> dict[str, Any]:
     Combines OpenEMR FHIR (if configured) and NPI Registry.
     """
     query = query.strip()
-    if not query:
+    all_keywords = ["all", "all providers", "list providers", "list all", "providers", 
+                    "everyone", "staff", "who", "system", "this system", "our providers",
+                    "show providers", "show all", "available providers", "registered providers"]
+    if not query or any(k in query.lower() for k in all_keywords):
+        # Return all OpenEMR system providers
+        all_providers = search_providers_direct(name="")
         return {
-            "success": False,
-            "error": format_ambiguous_input("which provider name, specialty, or location you're searching for"),
-            "providers": [],
+            "success": True,
+            "query": query or "all providers",
+            "providers": [{
+                "name": p.get("name", "Unknown"),
+                "source": "OpenEMR",
+                "id": p.get("id"),
+                "specialty": p.get("specialty", ""),
+                "credential": p.get("credential", ""),
+            } for p in all_providers],
+            "source": "OpenEMR",
         }
 
     providers: list[dict[str, Any]] = []
 
-    # 1. Try OpenEMR FHIR if token is set
-    fhir_pract = search_practitioners(name=query)
-    if fhir_pract:
-        entries = fhir_pract.get("entry") or []
-        for e in entries[:limit]:
-            res = e.get("resource", {})
-            name_parts = []
-            for p in res.get("name", [{}]):
-                given = " ".join(p.get("given", []))
-                family = p.get("family", "")
-                if given or family:
-                    name_parts.append(f"{given} {family}".strip())
-            name = name_parts[0] if name_parts else "Unknown"
-            providers.append({
-                "name": name,
-                "source": "OpenEMR",
-                "id": res.get("id"),
-            })
+    # 1. Try OpenEMR direct provider search (database query via internal endpoint)
+    # Strip Dr. prefix for OpenEMR search
+    clean_query = query.strip()
+    for prefix in ["Dr.", "Dr ", "dr.", "dr "]:
+        if clean_query.lower().startswith(prefix.lower()):
+            clean_query = clean_query[len(prefix):].strip()
+            break
+    openemr_providers = search_providers_direct(name=clean_query)
+    for p in openemr_providers[:limit]:
+        providers.append({
+            "name": p.get("name", "Unknown"),
+            "source": "OpenEMR",
+            "id": p.get("id"),
+            "specialty": p.get("specialty", ""),
+            "city": p.get("city", ""),
+            "state": p.get("state", ""),
+            "phone": p.get("phone", ""),
+        })
 
     # 2. NPI Registry - parse query for name/specialty/location
     specialty_keywords = ["cardio", "derm", "ortho", "pedia", "family", "internal", "psych",

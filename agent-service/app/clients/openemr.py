@@ -134,3 +134,28 @@ def search_medication_requests(
     if status:
         params["status"] = status
     return fhir_get("MedicationRequest", params=params)
+
+
+def search_providers_direct(name: str | None = None) -> list[dict[str, Any]]:
+    """
+    Search OpenEMR providers via the internal PHP endpoint (bypasses FHIR/OAuth).
+    Returns list of provider dicts or empty list on error.
+    """
+    base = settings.openemr_fhir_base_url.rstrip("/")
+    # Derive the OpenEMR base URL from the FHIR URL
+    # e.g. http://openemr/apis/default/fhir -> http://openemr
+    parts = base.split("/apis/")
+    openemr_base = parts[0] if parts else "http://openemr"
+    url = f"{openemr_base}/interface/modules/custom_modules/mod-ai-agent/public/providers.php"
+    params = {}
+    if name:
+        params["name"] = name
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params=params)
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+            return data.get("providers", [])
+    except (httpx.HTTPError, ValueError):
+        return []
