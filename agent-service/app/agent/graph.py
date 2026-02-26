@@ -172,7 +172,8 @@ def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tu
         return "I couldn't generate a response. Please try again.", m, tools_used
 
     t_verif = time.perf_counter()
-    verified = verify_and_gate(response, tool_results)
+    tool_names = [t["name"] for t in tools_used] if tools_used else []
+    verified = verify_and_gate(response, tool_results, tools_used=tool_names)
     m.verification_ms = (time.perf_counter() - t_verif) * 1000
 
     inp, out, total = aggregate_token_usage(messages)

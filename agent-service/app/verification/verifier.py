@@ -21,7 +21,7 @@ class VerificationResult:
     caveat_added: bool
 
 
-def verify_and_gate(response: str, tool_results: list[str]) -> VerificationResult:
+def verify_and_gate(response: str, tool_results: list[str], tools_used: list[str] | None = None) -> VerificationResult:
     """
     Verify response and apply confidence-based gating.
     - >= 0.9: return directly
@@ -32,6 +32,11 @@ def verify_and_gate(response: str, tool_results: list[str]) -> VerificationResul
     confidence = score_confidence(response, tool_results)
     fact_result = fact_check(response, tool_results)
     domain_violations = check_domain_rules(response)
+
+    # Skip domain rules for patient education (handouts describe conditions/treatments by design)
+    is_education = tools_used and any("patient_education" in t for t in (tools_used or []))
+    if is_education:
+        domain_violations = []
 
     # Domain violations: always refuse
     if domain_violations:
