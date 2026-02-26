@@ -12,6 +12,62 @@ from app.clients.npi import search_npi
 from app.clients.openemr import search_practitioners
 from app.utils.response_templates import format_ambiguous_input
 
+# Map common search terms to NPI taxonomy descriptions
+_TAXONOMY_MAP = {
+    "cardiologist": "Cardiovascular Disease",
+    "cardiology": "Cardiovascular Disease",
+    "dermatologist": "Dermatology",
+    "dermatology": "Dermatology",
+    "orthopedic": "Orthopaedic Surgery",
+    "orthopedist": "Orthopaedic Surgery",
+    "pediatrician": "Pediatrics",
+    "pediatrics": "Pediatrics",
+    "family medicine": "Family Medicine",
+    "family doctor": "Family Medicine",
+    "primary care": "Family Medicine",
+    "internal medicine": "Internal Medicine",
+    "internist": "Internal Medicine",
+    "psychiatrist": "Psychiatry & Neurology",
+    "psychiatry": "Psychiatry & Neurology",
+    "psychologist": "Psychology",
+    "surgeon": "Surgery",
+    "neurologist": "Neurology",
+    "neurology": "Neurology",
+    "gastroenterologist": "Gastroenterology",
+    "gastroenterology": "Gastroenterology",
+    "pulmonologist": "Pulmonary Disease",
+    "pulmonology": "Pulmonary Disease",
+    "endocrinologist": "Endocrinology, Diabetes & Metabolism",
+    "endocrinology": "Endocrinology, Diabetes & Metabolism",
+    "rheumatologist": "Rheumatology",
+    "rheumatology": "Rheumatology",
+    "urologist": "Urology",
+    "urology": "Urology",
+    "ophthalmologist": "Ophthalmology",
+    "ophthalmology": "Ophthalmology",
+    "radiologist": "Diagnostic Radiology",
+    "radiology": "Diagnostic Radiology",
+    "anesthesiologist": "Anesthesiology",
+    "anesthesiology": "Anesthesiology",
+    "emergency medicine": "Emergency Medicine",
+    "oncologist": "Medical Oncology",
+    "oncology": "Medical Oncology",
+    "obgyn": "Obstetrics & Gynecology",
+    "ob-gyn": "Obstetrics & Gynecology",
+    "gynecologist": "Obstetrics & Gynecology",
+}
+
+def _resolve_taxonomy(term: str) -> str:
+    """Map a common specialty term to an NPI taxonomy description."""
+    lower = term.lower().strip()
+    if lower in _TAXONOMY_MAP:
+        return _TAXONOMY_MAP[lower]
+    # Try partial match
+    for key, val in _TAXONOMY_MAP.items():
+        if key in lower or lower in key:
+            return val
+    return term
+
 
 class ProviderSearchInput(BaseModel):
     """Input schema for provider_search."""
@@ -63,20 +119,55 @@ def provider_search(query: str, limit: int = 10) -> dict[str, Any]:
                 "id": res.get("id"),
             })
 
-    # 2. NPI Registry - parse query for name/specialty
-    # Simple heuristic: if 2 words and looks like name, use first/last
+    # 2. NPI Registry - parse query for name/specialty/location
+    specialty_keywords = ["cardio", "derm", "ortho", "pedia", "family", "internal", "psych",
+                          "surgeon", "oncol", "neuro", "gastro", "pulmon", "endocrin", "rheumat",
+                          "urolog", "ophthal", "radiol", "anesthes", "emergency", "primary care"]
+    us_states = {"AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
+                 "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+                 "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
+                 "VA","WA","WV","WI","WY","DC"}
+
     parts = query.split()
-    first_name = parts[0] if len(parts) >= 1 else None
-    last_name = parts[1] if len(parts) >= 2 else None
+    query_lower = query.lower()
     taxonomy = None
-    if any(s in query.lower() for s in ["cardio", "derm", "ortho", "pedia", "family", "internal", "psych"]):
-        taxonomy = query
-        first_name = last_name = None
+    first_name = None
+    last_name = None
+    city = None
+    state = None
+
+    # Detect specialty
+    is_specialty = any(s in query_lower for s in specialty_keywords)
+    if is_specialty:
+        # Extract specialty word(s) and location
+        spec_words = []
+        loc_words = []
+        for p in parts:
+            if any(s in p.lower() for s in specialty_keywords):
+                spec_words.append(p)
+            elif p.upper() in us_states:
+                state = p.upper()
+            elif p.lower() in ["in", "near", "around"]:
+                continue
+            else:
+                loc_words.append(p)
+        raw_taxonomy = " ".join(spec_words) if spec_words else query
+        taxonomy = _resolve_taxonomy(raw_taxonomy)
+        if loc_words:
+            city = " ".join(loc_words)
+    else:
+        # Treat as name search
+        # Remove "Dr." or "Dr" prefix
+        clean_parts = [p for p in parts if p.lower().strip(".") != "dr"]
+        first_name = clean_parts[0] if len(clean_parts) >= 1 else None
+        last_name = clean_parts[1] if len(clean_parts) >= 2 else None
 
     npi_data = search_npi(
-        first_name=first_name or None,
-        last_name=last_name or None,
-        taxonomy_description=taxonomy or None,
+        first_name=first_name,
+        last_name=last_name,
+        taxonomy_description=taxonomy,
+        city=city,
+        state=state,
         limit=limit,
     )
     if npi_data:

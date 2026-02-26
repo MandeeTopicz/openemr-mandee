@@ -280,7 +280,7 @@ class ChatWidgetController
                 starterWrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
                     btn.addEventListener('click', function() {
                         var msg = btn.getAttribute('data-msg');
-                        if (msg) doSend(msg);
+                        if (msg) { input.value = msg; input.focus(); if (starterWrap) starterWrap.classList.add('hidden'); }
                     });
                 });
             }

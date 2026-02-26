@@ -78,15 +78,11 @@ def verify_and_gate(response: str, tool_results: list[str]) -> VerificationResul
         pass  # Return as-is
     elif confidence >= 0.7:
         caveat = (
-            "\n\n---\n"
-            "⚠️ _This information is for educational purposes. "
-            "Always consult a healthcare provider for medical decisions._"
+            "\n\nAlways consult a healthcare provider for clinical decisions."
         )
     elif confidence >= 0.5:
         caveat = (
-            "\n\n---\n"
-            "⚠️ **Important:** This response has limited verification. "
-            "Please consult a healthcare professional before making any clinical decisions."
+            "\n\nThis response has limited verification. Please consult a healthcare professional before making any clinical decisions."
         )
     else:
         return VerificationResult(

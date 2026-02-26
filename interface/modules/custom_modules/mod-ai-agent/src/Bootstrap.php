@@ -15,6 +15,7 @@ namespace OpenEMR\Modules\AIAgent;
 use OpenEMR\Common\Logging\SystemLogger;
 use OpenEMR\Core\OEGlobalsBag;
 use OpenEMR\Events\UserInterface\PageHeadingRenderEvent;
+use OpenEMR\Events\Main\Tabs\RenderEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Bootstrap
@@ -37,6 +38,11 @@ class Bootstrap
             $this->renderChatWidget(...),
             10
         );
+        $this->eventDispatcher->addListener(
+            RenderEvent::EVENT_BODY_RENDER_POST,
+            $this->renderChatWidgetOnMainTabs(...),
+            10
+        );
     }
 
     public function renderChatWidget(PageHeadingRenderEvent $event): PageHeadingRenderEvent
@@ -45,7 +51,7 @@ class Bootstrap
         $this->logger->error("AIAgent: PageHeadingRenderEvent fired", ['page_id' => $pageId]);
 
         $allowedPageIds = ['core.mrd', 'core.main', 'patient-portal', 'unknown'];
-        if (!in_array($pageId, $allowedPageIds, true)) {
+        if (false) { // Show on all pages
             $this->logger->error("AIAgent: Skipping - page_id not matched", ['page_id' => $pageId]);
             return $event;
         }
@@ -64,5 +70,20 @@ class Bootstrap
         }
 
         return $event;
+    }
+
+    public function renderChatWidgetOnMainTabs(RenderEvent $event): void
+    {
+        if (isset($GLOBALS['ai_agent_enabled']) && !$GLOBALS['ai_agent_enabled']) {
+            return;
+        }
+        try {
+            $controller = new Controller\ChatWidgetController();
+            $html = $controller->renderFloatingButton();
+            echo $html;
+            $this->logger->error("AIAgent: Injected chat widget via RenderEvent on main tabs");
+        } catch (\Throwable $e) {
+            $this->logger->error("AIAgent: Error rendering chat widget on main tabs", ['error' => $e->getMessage()]);
+        }
     }
 }
