@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.clients.rxnorm import resolve_rxcui, resolve_rxcuis
 from app.tools.drug_interactions_data import check_interaction, get_all_interactions_for_drug
+from app.utils.response_templates import format_ambiguous_input
 
 SOURCE = "RxNorm (drug ID) + Clinical reference (interactions)"
 
@@ -33,7 +34,7 @@ def drug_interaction_check(drug_names: list[str]) -> dict[str, Any]:
     if len(drug_names) < 2:
         return {
             "success": False,
-            "error": "At least 2 drugs required",
+            "error": format_ambiguous_input("which two or more medications you want to check for interactions"),
             "interactions": [],
             "source": SOURCE,
         }

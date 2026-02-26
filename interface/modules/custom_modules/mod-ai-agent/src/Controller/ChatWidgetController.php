@@ -135,13 +135,52 @@ class ChatWidgetController
                 padding: 0.2rem 0 0.2rem 0.5rem;
             }
             .ctz-chat-tools-list .ctz-tool-name { font-weight: 600; }
+            .ctz-chat-msg.ctz-thinking .bubble { color: #666; }
+            .ctz-thinking-dots::after {
+                content: '';
+                animation: ctz-dots 1.2s steps(4, end) infinite;
+            }
+            @keyframes ctz-dots {
+                0%, 20% { content: ''; }
+                40% { content: '.'; }
+                60% { content: '..'; }
+                80%, 100% { content: '...'; }
+            }
+            .ctz-chat-msg.ctz-error .bubble { background: #fff3cd; }
+            .ctz-retry-btn { margin-top: 0.5rem; }
+            .ctz-starter-wrap { padding: 0.5rem 0; }
+            .ctz-starter-wrap.hidden { display: none; }
+            .ctz-starter-label { font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+            .ctz-starter-btn {
+                display: block;
+                width: 100%;
+                text-align: left;
+                padding: 0.5rem 0.75rem;
+                margin-bottom: 0.35rem;
+                background: #f0f0f0;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+            }
+            .ctz-starter-btn:hover { background: #e8e8e8; }
+            .ctz-msg-time { font-size: 0.7rem; color: #999; margin-top: 0.2rem; }
         </style>
         <button type="button" class="ctz-chat-fab" id="ctz-chat-fab" title="<?php echo xla('CareTopicz AI Assistant'); ?>">
             <i class="fa fa-comments"></i>
         </button>
         <div class="ctz-chat-panel" id="ctz-chat-panel">
             <div class="ctz-chat-header"><?php echo xlt('CareTopicz AI Assistant'); ?></div>
-            <div class="ctz-chat-messages" id="ctz-chat-messages"></div>
+            <div class="ctz-chat-messages" id="ctz-chat-messages">
+                <div class="ctz-starter-wrap" id="ctz-starter-wrap">
+                    <div class="ctz-starter-label"><?php echo xlt('Try asking:'); ?></div>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Do lisinopril and ibuprofen interact?'); ?>"><?php echo xlt('Do lisinopril and ibuprofen interact?'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('What conditions are associated with chest pain and shortness of breath?'); ?>"><?php echo xlt('What conditions are associated with chest pain and shortness of breath?'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Check lisinopril and potassium, then find a primary care provider near Boston.'); ?>"><?php echo xlt('Check lisinopril and potassium, then find a primary care provider near Boston.'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Find a cardiologist near Austin'); ?>"><?php echo xlt('Find a cardiologist near Austin'); ?></button>
+                    <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('What is metformin?'); ?>"><?php echo xlt('What is metformin?'); ?></button>
+                </div>
+            </div>
             <div class="ctz-chat-input-area">
                 <textarea id="ctz-chat-input" placeholder="<?php echo xla('Ask about drug interactions, symptoms, providers...'); ?>"></textarea>
                 <button type="button" class="btn btn-primary btn-sm" id="ctz-chat-send"><?php echo xlt('Send'); ?></button>
@@ -152,11 +191,15 @@ class ChatWidgetController
             const fab = document.getElementById('ctz-chat-fab');
             const panel = document.getElementById('ctz-chat-panel');
             const messages = document.getElementById('ctz-chat-messages');
+            const starterWrap = document.getElementById('ctz-starter-wrap');
             const input = document.getElementById('ctz-chat-input');
             const sendBtn = document.getElementById('ctz-chat-send');
             const chatUrl = <?php echo json_encode($chatUrl); ?>;
             const csrf = <?php echo json_encode($csrfToken); ?>;
             const toolsCalledLabel = <?php echo json_encode(xlt('Tools Called')); ?>;
+            const errorConnectLabel = <?php echo json_encode(xla("I'm having trouble connecting right now. Please try again in a moment.")); ?>;
+            const retryLabel = <?php echo json_encode(xlt('Retry')); ?>;
+            var lastSentMessage = null;
 
             fab?.addEventListener('click', function() {
                 panel.classList.toggle('open');
@@ -169,13 +212,21 @@ class ChatWidgetController
                 return el.innerHTML;
             }
 
+            function formatBubbleContent(text) {
+                return String(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+            }
+
             function addMsg(role, text, toolsUsed) {
                 const div = document.createElement('div');
                 div.className = 'ctz-chat-msg ' + role;
                 const bubble = document.createElement('div');
                 if (role === 'assistant') bubble.className = 'bubble';
-                bubble.innerHTML = text.replace(/\n/g, '<br>');
+                bubble.innerHTML = formatBubbleContent(text);
                 div.appendChild(bubble);
+                var timeEl = document.createElement('div');
+                timeEl.className = 'ctz-msg-time';
+                timeEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                div.appendChild(timeEl);
                 if (role === 'assistant' && Array.isArray(toolsUsed) && toolsUsed.length > 0) {
                     const toolsWrap = document.createElement('div');
                     toolsWrap.className = 'ctz-chat-tools';
@@ -202,27 +253,97 @@ class ChatWidgetController
                 messages.scrollTop = messages.scrollHeight;
             }
 
-            sendBtn?.addEventListener('click', doSend);
+            function addErrorWithRetry(lastMsg) {
+                var div = document.createElement('div');
+                div.className = 'ctz-chat-msg assistant ctz-error';
+                var bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.innerHTML = formatBubbleContent(errorConnectLabel);
+                var retryBtn = document.createElement('button');
+                retryBtn.type = 'button';
+                retryBtn.className = 'btn btn-sm btn-primary ctz-retry-btn';
+                retryBtn.textContent = retryLabel;
+                retryBtn.addEventListener('click', function() {
+                    if (lastMsg) doSend(lastMsg);
+                });
+                bubble.appendChild(retryBtn);
+                div.appendChild(bubble);
+                var timeEl = document.createElement('div');
+                timeEl.className = 'ctz-msg-time';
+                timeEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                div.appendChild(timeEl);
+                messages.appendChild(div);
+                messages.scrollTop = messages.scrollHeight;
+            }
+
+            if (starterWrap) {
+                starterWrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var msg = btn.getAttribute('data-msg');
+                        if (msg) doSend(msg);
+                    });
+                });
+            }
+            sendBtn?.addEventListener('click', function() { doSend(); });
             input?.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
             });
 
-            function doSend() {
-                const msg = input?.value.trim();
+            function doSend(optionalMessage) {
+                const msg = (optionalMessage != null && optionalMessage !== '') ? String(optionalMessage).trim() : (input && input.value ? input.value.trim() : '');
                 if (!msg) return;
-                addMsg('user', msg);
-                input.value = '';
+                lastSentMessage = msg;
+                if (!optionalMessage) {
+                    addMsg('user', msg);
+                    if (input) input.value = '';
+                }
+                if (starterWrap && !starterWrap.classList.contains('hidden')) starterWrap.classList.add('hidden');
                 sendBtn.disabled = true;
+
+                var thinkingEl = document.createElement('div');
+                thinkingEl.className = 'ctz-chat-msg assistant ctz-thinking';
+                thinkingEl.id = 'ctz-thinking-placeholder';
+                var thinkingBubble = document.createElement('div');
+                thinkingBubble.className = 'bubble ctz-thinking-dots';
+                thinkingBubble.textContent = 'Thinking';
+                thinkingEl.appendChild(thinkingBubble);
+                messages.appendChild(thinkingEl);
+                messages.scrollTop = messages.scrollHeight;
+
+                var longWaitTimer = setTimeout(function() {
+                    if (thinkingBubble && thinkingBubble.parentNode) {
+                        thinkingBubble.textContent = 'Still working — checking multiple sources';
+                        thinkingBubble.classList.remove('ctz-thinking-dots');
+                    }
+                }, 10000);
+
+                var abortCtrl = new AbortController();
+                var fetchTimeout = setTimeout(function() {
+                    abortCtrl.abort();
+                }, 30000);
+
                 fetch(chatUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: msg, csrf_token: csrf }),
-                    credentials: 'same-origin'
-                }).then(r => r.json()).then(data => {
-                    addMsg('assistant', data.response || data.error || 'No response.', data.tools_used || []);
-                }).catch(() => {
-                    addMsg('assistant', 'Unable to reach the assistant. Please try again.');
-                }).finally(() => { sendBtn.disabled = false; });
+                    credentials: 'same-origin',
+                    signal: abortCtrl.signal
+                }).then(function(r) {
+                    clearTimeout(fetchTimeout);
+                    if (!r.ok) throw new Error('network');
+                    return r.json();
+                }).then(function(data) {
+                    if (thinkingEl.parentNode) thinkingEl.remove();
+                    var responseText = (data && data.response) ? data.response : 'No response.';
+                    addMsg('assistant', responseText, (data && data.tools_used) ? data.tools_used : []);
+                }).catch(function() {
+                    clearTimeout(fetchTimeout);
+                    if (thinkingEl.parentNode) thinkingEl.remove();
+                    addErrorWithRetry(lastSentMessage);
+                }).finally(function() {
+                    clearTimeout(longWaitTimer);
+                    sendBtn.disabled = false;
+                });
             }
         })();
         </script>

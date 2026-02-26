@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.openemr import get_patient
+from app.utils.response_templates import TOOL_FAILURE_UNAVAILABLE
 
 
 class PatientSummaryInput(BaseModel):
@@ -46,7 +47,7 @@ def patient_summary(patient_id: str) -> dict[str, Any]:
     if data is None:
         return {
             "success": False,
-            "error": "OpenEMR FHIR not configured or patient not found. Set OPENEMR_FHIR_TOKEN.",
+            "error": TOOL_FAILURE_UNAVAILABLE,
             "summary": "",
         }
 

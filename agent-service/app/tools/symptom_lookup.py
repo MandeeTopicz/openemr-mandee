@@ -10,6 +10,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.tools.symptom_data import lookup_symptom, search_symptoms
+from app.utils.response_templates import TOOL_LOW_CONFIDENCE, format_ambiguous_input
 
 SOURCE = "Clinical reference (MVP - curated symptom mapping)"
 
@@ -33,7 +34,7 @@ def symptom_lookup(symptom: str) -> dict[str, Any]:
     if not symptom:
         return {
             "success": False,
-            "error": "Symptom is required",
+            "error": format_ambiguous_input("which symptom or symptoms you're asking about"),
             "conditions": [],
             "source": SOURCE,
         }
@@ -52,7 +53,7 @@ def symptom_lookup(symptom: str) -> dict[str, Any]:
                 "success": True,
                 "symptom": symptom,
                 "conditions": [],
-                "note": "No matching symptom data found. This tool has limited coverage. Recommend professional evaluation for any concerning symptoms.",
+                "note": TOOL_LOW_CONFIDENCE,
                 "source": SOURCE,
             }
 

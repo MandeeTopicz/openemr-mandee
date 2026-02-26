@@ -63,3 +63,4 @@ If the widget works locally but not on a deployed server (e.g. GCP):
      - **Same VM, separate process:** Use `http://localhost:8000` or set the global `ai_agent_base_url` in Administration → Config.
      - **Different host:** Use the full URL (e.g. `http://agent-host:8000`). Ensure firewall/security groups allow the OpenEMR server to reach the agent port.
    - From the OpenEMR server (or OpenEMR container), run: `curl -s http://AGENT_URL/health` and confirm you get `{"status":"healthy",...}`.
+   - **Repo root:** See [DEPLOYMENT.md](../../../../../DEPLOYMENT.md) (Option C: GCP) and run `./scripts/check-caretopicz-deployment.sh` from the repo root for a full diagnostic.

@@ -1,14 +1,15 @@
 """
 CareTopicz Agent Service - LangGraph state machine.
 
-Flow: input -> agent (LLM + tool selection) -> tools -> agent -> verifier -> output
+Flow: input -> agent (LLM + tool selection) -> tools [with intermediate verification] -> agent -> verifier -> output
 Task 6: Verification layer (fact check, confidence, domain rules) gates responses.
+Task 3: Intermediate verification runs after each tool call (schema, domain rules, retry, fallback).
 """
 
 import time
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from langgraph.prebuilt import create_react_agent
+from langgraph.prebuilt import create_react_agent, ToolNode
 from langsmith import traceable
 
 from app.agent.nodes.reasoning import create_model
@@ -21,18 +22,72 @@ from app.observability.metrics import (
     update_langsmith_run_metadata,
 )
 from app.tools.registry import get_tools
+from app.verification.tool_output_verifier import verify_tool_output
 from app.verification.verifier import verify_and_gate
+
+# Fallback when tool output fails verification and retry also fails
+_TOOL_VERIFICATION_FALLBACK = (
+    "[Tool result could not be verified. Proceeding with caution—please confirm with a clinician if needed.]"
+)
+
+
+def _wrap_tool_call_verified(request, execute):
+    """
+    Intermediate verification after each tool call: validate schema, domain rules.
+    On failure: retry once, then return fallback message so the agent can continue.
+    Records per-tool latency and success for GET /metrics.
+    """
+    import logging
+
+    from app.observability.metrics import record_tool_call
+
+    tool_name = request.tool_call.get("name", "?")
+    t0 = time.perf_counter()
+    result = execute(request)
+    duration_ms = (time.perf_counter() - t0) * 1000
+
+    if not isinstance(result, ToolMessage):
+        record_tool_call(tool_name, duration_ms, False)
+        return result
+    if verify_tool_output(result.content or ""):
+        record_tool_call(tool_name, duration_ms, True)
+        return result
+    logging.getLogger(__name__).info(
+        "tool_output_verification_failed tool=%s (retrying once)",
+        tool_name,
+    )
+    # Retry once
+    t1 = time.perf_counter()
+    retry_result = execute(request)
+    duration_ms += (time.perf_counter() - t1) * 1000
+    if isinstance(retry_result, ToolMessage) and verify_tool_output(retry_result.content or ""):
+        record_tool_call(tool_name, duration_ms, True)
+        return retry_result
+    logging.getLogger(__name__).warning(
+        "tool_output_verification_fallback tool=%s",
+        tool_name,
+    )
+    record_tool_call(tool_name, duration_ms, False)
+    return ToolMessage(
+        tool_call_id=result.tool_call_id,
+        content=_TOOL_VERIFICATION_FALLBACK,
+        name=result.name or request.tool_call.get("name", "tool"),
+    )
 
 
 def create_graph():
-    """Build and compile the agent graph with tools."""
+    """Build and compile the agent graph with tools and intermediate verification."""
     model = create_model()
     tools = get_tools()
     model_with_tools = model.bind_tools(tools)
 
+    tool_node = ToolNode(
+        tools,
+        wrap_tool_call=_wrap_tool_call_verified,
+    )
     graph = create_react_agent(
         model_with_tools,
-        tools=tools,
+        tools=tool_node,
         prompt=SYSTEM_PROMPT,
     )
     return graph

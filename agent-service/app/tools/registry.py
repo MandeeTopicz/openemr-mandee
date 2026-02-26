@@ -6,6 +6,14 @@ Registers tools for LangGraph agent and exports tool list.
 
 from langchain_core.tools import StructuredTool
 
+def _tool_error_for_llm(error: str) -> str:
+    """Return tool error string for LLM. Standard (user-facing) messages as-is; others prefixed with 'Error:'."""
+    if not error:
+        return "Unknown error."
+    if error.startswith("I ") or "Could you clarify" in error:
+        return error
+    return f"Error: {error}"
+
 from app.tools.appointment_check import (
     AppointmentCheckInput,
 )
@@ -34,7 +42,7 @@ from app.tools.symptom_lookup import symptom_lookup as _symptom_lookup
 def _format_interaction_result(data: dict) -> str:
     """Format tool result as readable text for the LLM."""
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     interactions = data.get("interactions", [])
     if not interactions:
         drugs = data.get("drugs_checked", list(data.get("drugs_resolved", {}).keys()) or ["?"])
@@ -68,7 +76,7 @@ def _build_drug_interaction_tool() -> StructuredTool:
 
 def _format_symptom_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     conditions = data.get("conditions", [])
     if not conditions:
         return data.get("note", "No matching symptom data found.") + f"\nSource: {data.get('source', '')}"
@@ -97,7 +105,7 @@ def _build_symptom_lookup_tool() -> StructuredTool:
 
 def _format_provider_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     providers = data.get("providers", [])
     if not providers:
         return f"No providers found for: {data.get('query', '')}"
@@ -131,7 +139,7 @@ def _build_provider_search_tool() -> StructuredTool:
 
 def _format_appointment_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     appointments = data.get("appointments", [])
     if not appointments:
         return "No appointments found."
@@ -165,7 +173,7 @@ def _build_appointment_check_tool() -> StructuredTool:
 
 def _format_insurance_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     coverage = data.get("coverage", [])
     if not coverage:
         return f"No insurance coverage found for patient {data.get('patient_id', '') or 'N/A'}."
@@ -191,7 +199,7 @@ def _build_insurance_coverage_tool() -> StructuredTool:
 
 def _format_patient_summary_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     return data.get("summary", "No summary.") + f"\n\nSource: {data.get('source', '')}"
 
 
@@ -211,7 +219,7 @@ def _build_patient_summary_tool() -> StructuredTool:
 
 def _format_lab_results_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     results = data.get("results", [])
     if not results:
         return f"No lab results found for patient {data.get('patient_id', '')}.\nSource: {data.get('source', '')}"
@@ -235,7 +243,7 @@ def _build_lab_results_lookup_tool() -> StructuredTool:
 
 def _format_medication_list_result(data: dict) -> str:
     if not data.get("success"):
-        return f"Error: {data.get('error', 'Unknown error')}"
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
     meds = data.get("medications", [])
     if not meds:
         return f"No medications found for patient {data.get('patient_id', '')}.\nSource: {data.get('source', '')}"

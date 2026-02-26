@@ -133,6 +133,59 @@ Use these for load balancer or platform health probes. For operational monitorin
 
 ---
 
+---
+
+## Option C: GCP (Single VM, e.g. 34.139.68.240)
+
+Deploy the full stack on a single GCP VM (e.g. Compute Engine) so OpenEMR is reachable at `http://<VM_IP>:8300`. The chat widget may return **502** if the agent is unreachable from OpenEMR.
+
+### Why 502 happens
+
+The PHP module returns **502 Bad Gateway** when the agent proxy throws (connection refused, timeout, or invalid response). So 502 means: **OpenEMR could not get a valid response from the agent service**.
+
+### Checklist (run on the GCP VM)
+
+1. **Agent container running and healthy**
+   ```bash
+   cd /path/to/repo/docker/development-easy
+   docker compose ps
+   ```
+   Ensure `agent` and `openemr` are `Up` and (if applicable) `healthy`.
+
+2. **Agent URL from OpenEMR**
+   - With this repo’s `docker-compose.yml`, OpenEMR gets `OPENEMR_AI_AGENT_URL=http://agent:8000` (Docker network).
+   - From inside the OpenEMR container, the agent must be reachable at that URL:
+   ```bash
+   docker compose exec openemr curl -s -o /dev/null -w "%{http_code}" http://agent:8000/health
+   ```
+   Expect `200`. If you see connection refused or timeout, the agent is not reachable from OpenEMR.
+
+3. **Ports and firewall**
+   - OpenEMR: port **8300** (and 9300 if HTTPS) must be open on the VM firewall and to the internet if you need public access.
+   - Agent port 8000 does **not** need to be public; OpenEMR talks to it over the Docker network (`http://agent:8000`).
+
+4. **Agent env (API key)**
+   - Ensure `agent-service/.env` (or env_file in compose) has a valid `ANTHROPIC_API_KEY`. If the key is missing or invalid, `/chat` may return 500/503 from the agent; the proxy can surface that as 502.
+
+5. **PHP error log**
+   - On 502, check OpenEMR/PHP logs. The controller logs: `AIAgent chat error: <message>` (e.g. "Connection refused", "timed out"). That confirms the failure is between OpenEMR and the agent.
+
+### Diagnostic script
+
+From the repo root, run:
+
+```bash
+./scripts/check-caretopicz-deployment.sh
+```
+
+This script checks: agent container up, agent health endpoint from host and (if possible) from OpenEMR container, and reports the current `OPENEMR_AI_AGENT_URL` seen by OpenEMR. See [scripts/check-caretopicz-deployment.sh](scripts/check-caretopicz-deployment.sh).
+
+### After fixing
+
+Test the chat with at least three different queries (e.g. drug interaction, symptom lookup, appointment question). Once 502 is resolved, the widget should return verified responses. Use [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for sample queries.
+
+---
+
 ## Summary
 
 | Method | Public URL | Use Case |
@@ -140,3 +193,4 @@ Use these for load balancer or platform health probes. For operational monitorin
 | ngrok | `https://xxx.ngrok-free.app` | Quick demo, no cloud account |
 | Railway | `https://xxx.railway.app` | Persistent demo, free tier |
 | Render | `https://xxx.onrender.com` | Persistent demo, free tier |
+| GCP VM | `http://<VM_IP>:8300` | Persistent demo, single VM (see Option C for 502 fix) |

@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.openemr import search_coverage
+from app.utils.response_templates import TOOL_FAILURE_UNAVAILABLE
 
 
 class InsuranceCoverageInput(BaseModel):
@@ -29,7 +30,7 @@ def insurance_coverage(patient_id: str | None = None) -> dict[str, Any]:
     if data is None:
         return {
             "success": False,
-            "error": "OpenEMR FHIR not configured or unavailable. Set OPENEMR_FHIR_TOKEN.",
+            "error": TOOL_FAILURE_UNAVAILABLE,
             "coverage": [],
         }
 

@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.openemr import search_observations
+from app.utils.response_templates import TOOL_FAILURE_UNAVAILABLE
 
 
 class LabResultsLookupInput(BaseModel):
@@ -40,7 +41,7 @@ def lab_results_lookup(
     if data is None:
         return {
             "success": False,
-            "error": "OpenEMR FHIR not configured or unavailable. Set OPENEMR_FHIR_TOKEN.",
+            "error": TOOL_FAILURE_UNAVAILABLE,
             "results": [],
         }
 

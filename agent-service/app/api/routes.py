@@ -27,6 +27,17 @@ async def health():
     )
 
 
+@router.get("/metrics")
+async def metrics():
+    """
+    Return latency and success rate metrics for tool calls.
+    Targets: single-tool < 5s, multi-step < 15s, tool success rate > 95%.
+    """
+    from app.observability.metrics import get_metrics_report
+
+    return get_metrics_report()
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: Request):
     """

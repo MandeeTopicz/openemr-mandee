@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.clients.openemr import search_medication_requests
+from app.utils.response_templates import TOOL_FAILURE_UNAVAILABLE
 
 
 class MedicationListInput(BaseModel):
@@ -36,7 +37,7 @@ def medication_list(
     if data is None:
         return {
             "success": False,
-            "error": "OpenEMR FHIR not configured or unavailable. Set OPENEMR_FHIR_TOKEN.",
+            "error": TOOL_FAILURE_UNAVAILABLE,
             "medications": [],
         }
 

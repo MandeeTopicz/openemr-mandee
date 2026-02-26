@@ -71,19 +71,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Start agent
-        run: |
-          uvicorn app.main:app --host 127.0.0.1 --port 8000 &
-          for i in $(seq 1 30); do
-            curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health | grep -q 200 && break
-            sleep 1
-          done
-          curl -s http://127.0.0.1:8000/health || exit 1
-
-      - name: Run evals (80% pass rate gate)
-        run: python evals/runner.py --all --min-pass-rate 0.8 --url http://127.0.0.1:8000
+      - name: Run evals (80% pass rate gate, LangSmith SDK in-process)
+        run: python evals/runner.py --all --min-pass-rate 0.8 --langsmith
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional: set to 'true' to push eval traces to LangSmith
+          LANGCHAIN_TRACING_V2: ${{ vars.LANGCHAIN_TRACING_V2 || 'false' }}
 
   build:
     name: Build (Docker)

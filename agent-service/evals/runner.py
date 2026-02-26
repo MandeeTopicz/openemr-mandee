@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-CareTopicz Eval Runner - Execute test cases against the agent service.
+CareTopicz Eval Runner - Execute test cases via LangSmith SDK (in-process) or HTTP.
+
+Default: in-process invocation so each eval run is traced in LangSmith.
+Use --url to run against a live agent service (HTTP) instead.
 
 Usage:
-    python evals/runner.py [--dataset evals/datasets/mvp.json] [--url http://localhost:8000]
-
-Requires agent service running (uvicorn or similar).
+    python -m evals.runner --all --min-pass-rate 0.8
+    python -m evals.runner --all --url http://localhost:8000
 """
 
 import argparse
@@ -14,10 +16,10 @@ import sys
 import time
 from pathlib import Path
 
-import httpx
-
-# Project root for imports
+# Project root for imports (agent-service)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 
 def load_dataset(path: Path) -> list[dict]:
@@ -29,38 +31,81 @@ def load_dataset(path: Path) -> list[dict]:
     return data
 
 
-def run_single(
-    client: httpx.Client,
-    base_url: str,
-    case: dict,
-) -> tuple[bool, str, str]:
+def evaluate_response(response_text: str, case: dict) -> tuple[bool, str]:
     """
-    Run one test case. Returns (passed, response, reason).
+    Evaluate agent response against case expectations. Returns (passed, reason).
     """
-    user_input = case.get("input", "")
     expected_contains = case.get("expected_contains", [])
     expected_contains_any = case.get("expected_contains_any", [])
     expected_not_contains = case.get("expected_not_contains", [])
     min_length = case.get("min_length", 1)
     allow_empty = case.get("allow_empty_response", False)
 
+    if allow_empty:
+        return True, "OK (empty allowed)"
+
+    if len(response_text) < min_length:
+        return False, f"Response too short (min {min_length})"
+
+    for sub in expected_contains:
+        if sub.lower() not in response_text.lower():
+            return False, f"Missing required: '{sub}'"
+
+    for sub in expected_not_contains:
+        if sub.lower() in response_text.lower():
+            return False, f"Forbidden found: '{sub}'"
+
+    if expected_contains_any:
+        found = any(s.lower() in response_text.lower() for s in expected_contains_any)
+        if not found:
+            return False, f"Missing any of: {expected_contains_any}"
+
+    return True, "OK"
+
+
+def run_single_inprocess(case: dict) -> tuple[bool, str, str]:
+    """
+    Run one test case by invoking the graph in-process (traced in LangSmith).
+    Returns (passed, response, reason).
+    """
+    from app.agent.graph import invoke_graph
+
+    user_input = case.get("input", "")
+    try:
+        response_text, _metrics, _tools_used = invoke_graph(user_input)
+        # invoke_graph returns (response, metrics, tools_used)
+        passed, reason = evaluate_response(response_text or "", case)
+        return passed, response_text or "", reason
+    except Exception as e:
+        return False, "", str(e)
+
+
+def run_single_http(base_url: str, case: dict) -> tuple[bool, str, str]:
+    """
+    Run one test case via HTTP /chat. Returns (passed, response, reason).
+    """
+    import httpx
+
+    user_input = case.get("input", "")
     max_retries = 3
     last_error = None
 
     for attempt in range(max_retries):
         try:
-            resp = client.post(
-                f"{base_url.rstrip('/')}/chat",
-                json={"message": user_input},
-                timeout=60.0,
-            )
+            with httpx.Client() as client:
+                resp = client.post(
+                    f"{base_url.rstrip('/')}/chat",
+                    json={"message": user_input},
+                    timeout=60.0,
+                )
             if resp.status_code == 429 and attempt < max_retries - 1:
                 time.sleep(30)
                 continue
             resp.raise_for_status()
             data = resp.json()
             response_text = data.get("response", "")
-            break
+            passed, reason = evaluate_response(response_text, case)
+            return passed, response_text, reason
         except httpx.HTTPStatusError as e:
             last_error = e
             if e.response.status_code == 429 and attempt < max_retries - 1:
@@ -71,39 +116,18 @@ def run_single(
             return False, "", f"Request failed: {e}"
         except json.JSONDecodeError as e:
             return False, "", f"Invalid JSON: {e}"
-    # Exhausted retries on 429 (should not reach here; last 429 attempt returns above)
+
     if last_error:
-        return False, "", f"HTTP 429 (rate limit) after {max_retries} retries: {last_error.response.text[:200]}"
-
-    # Allow empty/short response for edge cases
-    if allow_empty:
-        return True, response_text, "OK (empty allowed)"
-
-    if len(response_text) < min_length:
-        return False, response_text, f"Response too short (min {min_length})"
-
-    for sub in expected_contains:
-        if sub.lower() not in response_text.lower():
-            return False, response_text, f"Missing required: '{sub}'"
-
-    for sub in expected_not_contains:
-        if sub.lower() in response_text.lower():
-            return False, response_text, f"Forbidden found: '{sub}'"
-
-    if expected_contains_any:
-        found = any(s.lower() in response_text.lower() for s in expected_contains_any)
-        if not found:
-            return (
-                False,
-                response_text,
-                f"Missing any of: {expected_contains_any}",
-            )
-
-    return True, response_text, "OK"
+        return (
+            False,
+            "",
+            f"HTTP 429 (rate limit) after {max_retries} retries: {last_error.response.text[:200]}",
+        )
+    return False, "", "Unknown error"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run CareTopicz evals")
+    parser = argparse.ArgumentParser(description="Run CareTopicz evals (LangSmith SDK / in-process or HTTP)")
     parser.add_argument(
         "--dataset",
         type=Path,
@@ -113,12 +137,13 @@ def main() -> int:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Run all datasets in evals/datasets/ (correctness, edge_cases, adversarial, multi_step)",
+        help="Run all datasets in evals/datasets/",
     )
     parser.add_argument(
         "--url",
-        default="http://localhost:8000",
-        help="Agent service base URL",
+        default=None,
+        metavar="URL",
+        help="Agent base URL (e.g. http://localhost:8000). If unset, run in-process (SDK/traced).",
     )
     parser.add_argument(
         "--verbose",
@@ -159,34 +184,42 @@ def main() -> int:
             all_cases.append((p, c))
 
     cases = [c for _, c in all_cases]
+    use_http = args.url is not None
     print(f"Running {len(cases)} test cases from {len(dataset_paths)} dataset(s)")
-    print(f"Agent URL: {args.url}\n")
+    if use_http:
+        print(f"Mode: HTTP @ {args.url}\n")
+        # Health check
+        try:
+            import httpx
+            with httpx.Client() as client:
+                r = client.get(f"{args.url.rstrip('/')}/health", timeout=5.0)
+                r.raise_for_status()
+        except Exception as e:
+            print(f"Agent service not reachable at {args.url}: {e}")
+            return 1
+    else:
+        print("Mode: in-process (LangSmith SDK; set LANGCHAIN_TRACING_V2=true for traces)\n")
 
     passed = 0
     failed = 0
 
-    with httpx.Client() as client:
-        # Quick health check
-        try:
-            r = client.get(f"{args.url.rstrip('/')}/health", timeout=5.0)
-            r.raise_for_status()
-        except Exception as e:
-            print(f"Agent service not reachable at {args.url}: {e}")
-            return 1
+    for case in cases:
+        name = case.get("name", "unnamed")
+        if use_http:
+            ok, response, reason = run_single_http(args.url, case)
+        else:
+            ok, response, reason = run_single_inprocess(case)
 
-        for case in cases:
-            name = case.get("name", "unnamed")
-            ok, response, reason = run_single(client, args.url, case)
-            status = "PASS" if ok else "FAIL"
-            if ok:
-                passed += 1
-            else:
-                failed += 1
+        status = "PASS" if ok else "FAIL"
+        if ok:
+            passed += 1
+        else:
+            failed += 1
 
-            print(f"  [{status}] {name}: {reason}")
-            if args.verbose or not ok:
-                preview = (response[:200] + "...") if len(response) > 200 else response
-                print(f"       Response: {preview!r}\n")
+        print(f"  [{status}] {name}: {reason}")
+        if args.verbose or not ok:
+            preview = (response[:200] + "...") if len(response) > 200 else response
+            print(f"       Response: {preview!r}\n")
 
     print(f"\n--- Results: {passed} passed, {failed} failed of {len(cases)} total ---")
 

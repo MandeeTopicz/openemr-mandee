@@ -2,12 +2,18 @@
 CareTopicz Agent Service - Request metrics and observability.
 
 Tracks latency (LLM+graph, verification), token usage, cost estimation,
-and error categorization. Integrates with LangSmith run metadata.
+per-tool latency and success rate, and error categorization.
+Integrates with LangSmith run metadata.
 """
 
+import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
+
+# In-memory store for per-tool call metrics (duration_ms, success)
+_tool_call_records: list[tuple[str, float, bool]] = []
+_tool_call_lock = threading.Lock()
 
 # Anthropic pricing per 1M tokens (USD, approximate - update as needed)
 # Claude Sonnet 4: https://www.anthropic.com/pricing
@@ -118,6 +124,54 @@ def update_langsmith_run_metadata(run_id: str | None, metadata: dict[str, Any]) 
         client.update_run(run_id, extra={"metadata": metadata})
     except Exception:
         pass  # Don't fail request if LangSmith update fails
+
+
+def record_tool_call(tool_name: str, duration_ms: float, success: bool) -> None:
+    """Record one tool invocation for latency and success rate metrics."""
+    with _tool_call_lock:
+        _tool_call_records.append((tool_name, duration_ms, success))
+
+
+def get_metrics_report() -> dict[str, Any]:
+    """
+    Aggregate per-tool latency and success rate. For use by GET /metrics.
+    Targets: single-tool < 5s, multi-step < 15s, tool success rate > 95%.
+    """
+    with _tool_call_lock:
+        records = list(_tool_call_records)
+    if not records:
+        return {
+            "tool_calls": {},
+            "overall": {"total_calls": 0, "success_rate": 0.0, "avg_latency_ms": 0.0},
+            "targets": {"single_tool_max_ms": 5000, "multi_step_max_ms": 15000, "success_rate_min": 0.95},
+        }
+    by_tool: dict[str, list[tuple[float, bool]]] = {}
+    for name, dur, ok in records:
+        by_tool.setdefault(name, []).append((dur, ok))
+    tool_calls = {}
+    for name, pairs in by_tool.items():
+        durs = [p[0] for p in pairs]
+        successes = sum(1 for p in pairs if p[1])
+        tool_calls[name] = {
+            "count": len(pairs),
+            "success_count": successes,
+            "success_rate": round(successes / len(pairs), 4),
+            "avg_latency_ms": round(sum(durs) / len(durs), 2),
+            "min_ms": round(min(durs), 2),
+            "max_ms": round(max(durs), 2),
+        }
+    total = len(records)
+    success_total = sum(1 for _, _, ok in records if ok)
+    all_durs = [r[1] for r in records]
+    return {
+        "tool_calls": tool_calls,
+        "overall": {
+            "total_calls": total,
+            "success_rate": round(success_total / total, 4),
+            "avg_latency_ms": round(sum(all_durs) / total, 2),
+        },
+        "targets": {"single_tool_max_ms": 5000, "multi_step_max_ms": 15000, "success_rate_min": 0.95},
+    }
 
 
 def log_eval_summary(

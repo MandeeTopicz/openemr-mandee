@@ -20,6 +20,25 @@
 
 [OpenEMR](https://open-emr.org) is a Free and Open Source electronic health records and medical practice management application. It features fully integrated electronic health records, practice management, scheduling, electronic billing, internationalization, free support, a vibrant community, and a whole lot more. It runs on Windows, Linux, Mac OS X, and many other platforms.
 
+---
+
+## CareTopicz (AI Agent Integration)
+
+This fork includes **CareTopicz**, an AI assistant that runs inside OpenEMR: natural-language queries for drug interactions, symptoms, providers, appointments, and insurance, with a verification layer (no diagnosis/prescription).
+
+- **Deployed demo:** [http://34.139.68.240:8300](http://34.139.68.240:8300) — log in and open the chat widget on the patient dashboard. If the chat returns 502, see [DEPLOYMENT.md](DEPLOYMENT.md) (Option C: GCP) and run `./scripts/check-caretopicz-deployment.sh`.
+- **Setup (clone and run locally):** See [DEPLOYMENT.md](DEPLOYMENT.md). Quick: `cd docker/development-easy && docker compose up -d`. Set `agent-service/.env` with `ANTHROPIC_API_KEY`. Enable the module in OpenEMR (Admin → Modules → CareTopicz AI Agent).
+- **Deliverables:**
+  - [Demo video](https://example.com) — _add your 3–5 min video link_
+  - [AI Cost Analysis](AI_COST_ANALYSIS.md) — dev spend, per-query cost, scaling projections
+  - [Eval Results](EVAL_RESULTS.md) — 61-case suite results and pass rate
+  - [Eval dataset](agent-service/evals/datasets/) — CC BY 4.0; [README](agent-service/evals/datasets/README.md) for format and usage
+  - [Agent Architecture](docs/OpenEMR_Agent_Architecture.md) — system design and directory structure
+  - [Demo script](DEMO_SCRIPT.md) — sample queries and talking points for the video
+  - [Social post draft](SOCIAL_POST.md) — LinkedIn/X announcement
+
+---
+
 ### Contributing
 
 OpenEMR is a leader in healthcare open source software and comprises a large and diverse community of software developers, medical providers and educators with a very healthy mix of both volunteers and professionals. [Join us and learn how to start contributing today!](https://open-emr.org/wiki/index.php/FAQ#How_do_I_begin_to_volunteer_for_the_OpenEMR_project.3F)

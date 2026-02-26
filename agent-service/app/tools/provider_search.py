@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.clients.npi import search_npi
 from app.clients.openemr import search_practitioners
+from app.utils.response_templates import format_ambiguous_input
 
 
 class ProviderSearchInput(BaseModel):
@@ -37,7 +38,7 @@ def provider_search(query: str, limit: int = 10) -> dict[str, Any]:
     if not query:
         return {
             "success": False,
-            "error": "Search query is required",
+            "error": format_ambiguous_input("which provider name, specialty, or location you're searching for"),
             "providers": [],
         }
 
