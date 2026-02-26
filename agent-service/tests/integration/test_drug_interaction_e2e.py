@@ -36,7 +36,7 @@ def test_drug_interaction_check_requires_two_drugs():
     result = drug_interaction_check(["lisinopril"])
     assert result["success"] is False
     assert "error" in result
-    assert "2" in result["error"] or "least" in result["error"].lower()
+    assert "2" in result.get("error", "") or "least" in result.get("error", "").lower() or "two or more" in result.get("error", "").lower()
 
 
 def test_curated_data_lisinopril_ibuprofen():

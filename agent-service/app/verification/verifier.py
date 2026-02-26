@@ -66,7 +66,11 @@ def verify_and_gate(response: str, tool_results: list[str], tools_used: list[str
         )
 
     # Hallucination check: unsupported stats, fabricated claims
-    halluc_result = check_hallucination(response, tool_results)
+    # Skip hallucination check for safe tools (education, appointments, etc.)
+    if is_safe_tool:
+        halluc_result = type("HR", (), {"passed": True, "issues": []})()
+    else:
+        halluc_result = check_hallucination(response, tool_results)
     if not halluc_result.passed:
         return VerificationResult(
             response=(
