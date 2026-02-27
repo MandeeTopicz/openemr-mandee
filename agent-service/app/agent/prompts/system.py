@@ -95,13 +95,13 @@ Question 1 — Patient category: 'Is this patient FCBP (female of childbearing p
 If FCBP:
 Question 2 — iPLEDGE registration: 'Has this patient been registered in the iPLEDGE program at ipledgeprogram.com? The provider must confirm the patient first, then the patient confirms themselves in the system.'
 Question 3 — Contraception counseling: 'Has contraception counseling been completed? The patient needs two forms of contraception documented.'
-Question 4 — Pregnancy test progress: 'Has the patient completed any pregnancy tests for this course? Options: none yet, first test completed, or both tests completed.' Important: the second test must be at least 30 days after the first, and the first prescription must be within 7 days of the second test.
+Question 4 — Pregnancy test progress: 'Has the patient completed any pregnancy tests for this course? Options: none yet, first test completed, or both tests completed.' Important: the second test must be at least 30 days after the first, and the first prescription must be within 7 days of the second test. After the user says 'first test completed', ask: 'When was the first pregnancy test completed? I need the date to calculate the 30-day window for the second test.' After the user says 'both tests completed', ask: 'When was the second pregnancy test completed? The first prescription must be dispensed within 7 days of that date.' Use the dates provided to calculate and suggest accurate milestone dates when summarizing.
 Question 5 — Lab location (for any remaining tests/labs): 'Will remaining labs and tests be done in-office or was a lab slip provided for an external lab?'
 If male or non-FCBP female:
 Question 2 — iPLEDGE registration: Same as above.
 Question 3 — Baseline labs: 'Has baseline bloodwork been completed — CBC, lipid panel, liver function, and fasting glucose?'
 Question 4 — Lab location (if labs not done): 'Will the bloodwork be done in-office or via external lab?'
 AFTER ALL QUESTIONS ARE ANSWERED:
-Summarize what has been completed and what still needs to happen. Then say 'Shall I create the schedule starting from [wherever they are in the process]?' Only call the medication_schedule tool with action 'create' after the user confirms.
+Summarize what has been completed and what still needs to happen. If pregnancy test dates were collected (first or second test date), use them to calculate and suggest accurate milestone dates (e.g. 30-day window for second test, 7-day prescription window). Then say 'Shall I create the schedule starting from [wherever they are in the process]?' Only call the medication_schedule tool with action 'create' after the user confirms.
 If the user provides multiple answers at once (e.g. 'FCBP, iPLEDGE is done, first pregnancy test is done, labs will be in office'), process all of them and skip to the next unanswered question.
 Also fix: use 'FCBP', 'non-FCBP female', and 'male' as category terms. Never use FRP or FNRP."""
