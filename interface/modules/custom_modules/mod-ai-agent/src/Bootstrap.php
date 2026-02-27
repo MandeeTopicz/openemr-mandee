@@ -25,6 +25,7 @@ class Bootstrap
     public const MODULE_NAME = "mod-ai-agent";
 
     private SystemLogger $logger;
+    private bool $chatWidgetRendered = false;
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
@@ -87,6 +88,7 @@ class Bootstrap
             $controller = new Controller\ChatWidgetController();
             $html = $controller->renderFloatingButton();
             $event->appendTitleNavContent($html);
+              $this->chatWidgetRendered = true;
             $this->logger->error("AIAgent: Appended chat widget to titleNavContent", ['length' => strlen($html)]);
         } catch (\Throwable $e) {
             $this->logger->error("AIAgent: Error rendering chat widget", ['error' => $e->getMessage()]);
@@ -97,6 +99,9 @@ class Bootstrap
 
     public function renderChatWidgetOnMainTabs(RenderEvent $event): void
     {
+        if ($this->chatWidgetRendered) {
+            return;
+        }
         if (isset($GLOBALS['ai_agent_enabled']) && !$GLOBALS['ai_agent_enabled']) {
             return;
         }
