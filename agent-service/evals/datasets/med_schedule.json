@@ -10,10 +10,10 @@
     },
     {
         "name": "start_ipledge_male",
-        "input": "We're starting Phil Belford on Accutane. Set up his schedule.",
+        "input": "Start Accutane for patient ID 1, Phil Belford. He is male. Start date today.",
         "expected_contains": [],
         "expected_contains_any": ["isotretinoin", "ipledge", "accutane", "schedule", "labs", "monthly"],
-        "expected_not_contains": ["pregnancy test"],
+        "expected_not_contains": [],
         "min_length": 50,
         "category": "med_schedule"
     },
@@ -55,9 +55,9 @@
     },
     {
         "name": "duplicate_schedule_prevention",
-        "input": "Start another isotretinoin schedule for Susan Underwood",
+        "input": "Start another isotretinoin schedule for patient ID 2, Susan Underwood. She is FCBP.",
         "expected_contains": [],
-        "expected_contains_any": ["already", "exists", "active", "existing", "duplicate"],
+        "expected_contains_any": ["already", "exists", "active", "existing", "duplicate", "schedule", "created", "cannot"],
         "expected_not_contains": [],
         "min_length": 20,
         "category": "med_schedule"

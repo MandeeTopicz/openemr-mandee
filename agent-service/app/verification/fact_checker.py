@@ -46,7 +46,8 @@ def fact_check(response: str, tool_results: list[str]) -> FactCheckResult:
             issues.append("Tool reported interactions but response says none")
         if not tool_says_interaction and "no interaction" not in combined_tools and resp_says_has_interaction:
             # Tool may have returned empty - don't flag if tool explicitly said no interaction
-            if "no known" in combined_tools or "no interactions" in combined_tools:
+            resp_acknowledges_no_interaction = "no interaction" in resp_lower or "did not flag" in resp_lower or "not flag" in resp_lower or "no direct" in resp_lower or "no known interaction" in resp_lower or "checker did not" in resp_lower
+            if ("no known" in combined_tools or "no interactions" in combined_tools) and not resp_acknowledges_no_interaction:
                 issues.append("Tool reported no interactions but response suggests there are")
 
     # Symptom lookup: response should not invent conditions not in tool output
