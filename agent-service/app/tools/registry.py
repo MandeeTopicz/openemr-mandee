@@ -47,6 +47,8 @@ from app.tools.med_schedule import MedicationScheduleInput
 from app.tools.med_schedule import medication_schedule as _medication_schedule
 from app.tools.provider_search import ProviderSearchInput
 from app.tools.provider_search import provider_search as _provider_search
+from app.tools.scheduling import SchedulingInput
+from app.tools.scheduling import scheduling as _scheduling
 from app.tools.symptom_lookup import SymptomLookupInput
 from app.tools.symptom_lookup import symptom_lookup as _symptom_lookup
 
@@ -425,12 +427,68 @@ def _build_medication_schedule_tool() -> StructuredTool:
     )
 
 
+def _format_scheduling_result(data: dict) -> str:
+    """Format scheduling result for LLM."""
+    if not data.get("success"):
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
+    if "providers" in data:
+        providers = data["providers"]
+        if not providers:
+            return "No providers found."
+        lines = [f"- {p.get('fname', '')} {p.get('lname', '')} (id: {p.get('id')}, specialty: {p.get('specialty', 'General')})" for p in providers]
+        return "Providers:\n" + "\n".join(lines)
+    if "slots" in data:
+        slots = data["slots"]
+        if not slots:
+            return "No available slots found."
+        lines = [f"- {s['date']} at {s['start_time']}" for s in slots]
+        return "Available slots:\n" + "\n".join(lines)
+    if "pc_eid" in data:
+        return f"Appointment booked successfully. pc_eid: {data['pc_eid']}"
+    return "Done."
+
+
+def _run_scheduling(
+    action: str,
+    provider_id: int | None = None,
+    patient_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    time_preference: str | None = None,
+    date: str | None = None,
+    start_time: str | None = None,
+    title: str = "Office Visit",
+) -> str:
+    result = _scheduling(
+        action=action,
+        provider_id=provider_id,
+        patient_id=patient_id,
+        start_date=start_date,
+        end_date=end_date,
+        time_preference=time_preference,
+        date=date,
+        start_time=start_time,
+        title=title,
+    )
+    return _format_scheduling_result(result)
+
+
+def _build_scheduling_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_scheduling,
+        name="scheduling",
+        description="List providers, check appointment availability, and book appointments in OpenEMR calendar.",
+        args_schema=SchedulingInput,
+    )
+
+
 def get_tools() -> list[StructuredTool]:
     """Return list of tools for the agent."""
     return [
         _build_drug_interaction_tool(),
         _build_symptom_lookup_tool(),
         _build_medication_schedule_tool(),
+        _build_scheduling_tool(),
         _build_provider_search_tool(),
         _build_insurance_provider_search_tool(),
         _build_appointment_check_tool(),
