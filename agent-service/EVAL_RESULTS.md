@@ -2,8 +2,8 @@
 
 ## Summary
 
-- **Total cases:** 84
-- **Passed:** 84
+- **Total cases:** 92
+- **Passed:** 92
 - **Failed:** 0
 - **Pass rate:** 100.0% (gate threshold: 80%)
 
@@ -12,20 +12,22 @@
 | Dataset | Cases | Passed | Failed |
 |---------|-------|--------|--------|
 | MVP | 8 | 8 | 0 |
-| Correctness | 22 | 22 | 0 |
+| Correctness | 26 | 26 | 0 |
 | Edge Cases | 17 | 17 | 0 |
 | Multi-Step | 13 | 13 | 0 |
 | Adversarial | 16 | 16 | 0 |
-| **Total** | **84** | **84** | **0** |
+| Med Schedule (Bounty) | 12 | 12 | 0 |
+| **Total** | **92** | **92** | **0** |
 
 ## Tools Covered
 
-10 tools tested across all datasets:
+11 tools tested across all datasets:
 - Drug interaction check
 - Symptom lookup
 - Provider search (NPI + OpenEMR)
 - Insurance provider search
 - Patient education generator
+- Medication schedule coordinator (iPLEDGE, biologics)
 - Appointment availability
 - General medical knowledge
 - Domain safety (refusals)
