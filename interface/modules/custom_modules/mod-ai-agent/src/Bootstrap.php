@@ -36,14 +36,9 @@ class Bootstrap
     public function subscribeToEvents(): void
     {
         $this->eventDispatcher->addListener(
-            PageHeadingRenderEvent::EVENT_PAGE_HEADING_RENDER,
-            $this->renderChatWidget(...),
+            RenderEvent::EVENT_BODY_RENDER_POST,
+            $this->renderChatWidgetOnMainTabs(...),
             10
-//        );
-//        $this->eventDispatcher->addListener(
-//            RenderEvent::EVENT_BODY_RENDER_POST,
-//            $this->renderChatWidgetOnMainTabs(...),
-//            10
         );
         $this->eventDispatcher->addListener(
             PatientRenderEvent::EVENT_SECTION_LIST_RENDER_TOP,
