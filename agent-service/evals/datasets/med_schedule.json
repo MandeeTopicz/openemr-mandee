@@ -70,5 +70,32 @@
         "expected_not_contains": [],
         "min_length": 50,
         "category": "med_schedule"
+    },
+    {
+        "name": "create_short_duration",
+        "input": "Start isotretinoin for patient ID 2, FCBP, just 2 months for now. Start date today.",
+        "expected_contains": [],
+        "expected_contains_any": ["schedule", "isotretinoin", "2 month", "created", "milestone"],
+        "expected_not_contains": [],
+        "min_length": 50,
+        "category": "med_schedule"
+    },
+    {
+        "name": "extend_schedule",
+        "input": "Extend Susan Underwood's isotretinoin schedule by 2 more months. Patient ID 2.",
+        "expected_contains": [],
+        "expected_contains_any": ["extend", "month", "schedule", "milestone", "added"],
+        "expected_not_contains": [],
+        "min_length": 30,
+        "category": "med_schedule"
+    },
+    {
+        "name": "discontinue_adverse_reaction",
+        "input": "Discontinue isotretinoin for patient ID 1. Reason: adverse reaction, severe headaches.",
+        "expected_contains": [],
+        "expected_contains_any": ["discontinue", "cancel", "stopped", "adverse", "schedule"],
+        "expected_not_contains": [],
+        "min_length": 30,
+        "category": "med_schedule"
     }
 ]

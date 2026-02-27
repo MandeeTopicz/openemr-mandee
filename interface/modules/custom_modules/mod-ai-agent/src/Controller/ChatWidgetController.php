@@ -43,7 +43,7 @@ class ChatWidgetController
             SELECT s.id, s.patient_category, s.status, p.medication_name, p.protocol_type
             FROM patient_med_schedules s
             JOIN medication_protocols p ON p.id = s.protocol_id
-            WHERE s.patient_id = ? AND s.status IN ('initiating','active','completing')
+            WHERE s.patient_id = ? AND s.status IN ('initiating','active','completing','paused')
         ");
         $stmt->execute([$pid]);
         $schedules = $stmt->fetchAll();
@@ -64,6 +64,15 @@ class ChatWidgetController
             $next = $mStmt->fetch();
             $proto = strtoupper($sched['protocol_type'] ?? 'REMS');
             $med = $sched['medication_name'] ?? 'Medication';
+            if (($sched['status'] ?? '') === 'paused') {
+                $severity = 'blue';
+                $bannerLines[] = sprintf(
+                    '%s PAUSED — %s — Milestones on hold. Resume to reactivate.',
+                    $proto,
+                    $med
+                );
+                continue;
+            }
             if (!$next) {
                 $bannerLines[] = sprintf(
                     '%s ACTIVE — %s — %s — All milestones complete',
@@ -110,9 +119,9 @@ class ChatWidgetController
             }
         }
         $text = implode(' | ', $bannerLines);
-        $bg = $severity === 'red' ? '#f8d7da' : ($severity === 'yellow' ? '#fff3cd' : '#d4edda');
-        $border = $severity === 'red' ? '#f5c6cb' : ($severity === 'yellow' ? '#ffc107' : '#c3e6cb');
-        $color = $severity === 'red' ? '#721c24' : ($severity === 'yellow' ? '#856404' : '#155724');
+        $bg = $severity === 'red' ? '#f8d7da' : ($severity === 'yellow' ? '#fff3cd' : ($severity === 'blue' ? '#cce5ff' : '#d4edda'));
+        $border = $severity === 'red' ? '#f5c6cb' : ($severity === 'yellow' ? '#ffc107' : ($severity === 'blue' ? '#b8daff' : '#c3e6cb'));
+        $color = $severity === 'red' ? '#721c24' : ($severity === 'yellow' ? '#856404' : ($severity === 'blue' ? '#004085' : '#155724'));
         return '<div class="ctz-med-schedule-banner mb-2 px-3 py-2 rounded" style="background:' . htmlspecialchars($bg) . ';border:1px solid ' . htmlspecialchars($border) . ';color:' . htmlspecialchars($color) . ';font-size:0.95rem;">' . htmlspecialchars($text) . '</div>';
     }
 

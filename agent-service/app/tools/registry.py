@@ -394,6 +394,7 @@ def _run_medication_schedule(
     notes: str | None = None,
     start_date: str | None = None,
     created_by: str = "agent",
+    duration_months: int | None = None,
 ) -> str:
     result = _medication_schedule(
         action=action,
@@ -408,6 +409,7 @@ def _run_medication_schedule(
         notes=notes,
         start_date=start_date,
         created_by=created_by,
+        duration_months=duration_months,
     )
     return _format_medication_schedule_result(result)
 

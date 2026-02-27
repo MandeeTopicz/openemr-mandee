@@ -12,20 +12,38 @@ from app.clients.openemr import (
     cancel_medication_schedule,
     check_schedule_conflicts,
     complete_milestone,
+    complete_treatment,
     create_medication_schedule,
+    discontinue_medication_schedule,
+    extend_medication_schedule,
     get_dashboard_alerts,
     get_medication_schedule,
     get_patient_demographics,
+    pause_medication_schedule,
     reschedule_milestone,
+    resume_medication_schedule,
 )
 
 
 class MedicationScheduleInput(BaseModel):
     """Input schema for medication_schedule."""
 
-    action: Literal["create", "status", "complete", "cancel", "reschedule", "conflicts", "dashboard"] = Field(
+    action: Literal[
+        "create",
+        "status",
+        "complete",
+        "cancel",
+        "reschedule",
+        "conflicts",
+        "dashboard",
+        "extend",
+        "complete_treatment",
+        "discontinue",
+        "pause",
+        "resume",
+    ] = Field(
         ...,
-        description="Action: create, status, complete, cancel, reschedule, conflicts, dashboard",
+        description="Action: create, status, complete, cancel, reschedule, conflicts, dashboard, extend, complete_treatment, discontinue, pause, resume",
     )
     patient_id: int | None = Field(
         default=None,
@@ -70,6 +88,10 @@ class MedicationScheduleInput(BaseModel):
     created_by: str | None = Field(
         default="agent",
         description="Username of staff creating (for create)",
+    )
+    duration_months: int | None = Field(
+        default=None,
+        description="Number of months of milestones to generate (default: 6 for isotretinoin, 3 for biologics). For create or extend.",
     )
 
 
@@ -146,6 +168,7 @@ def medication_schedule(
     notes: str | None = None,
     start_date: str | None = None,
     created_by: str = "agent",
+    duration_months: int | None = None,
 ) -> dict[str, Any]:
     """
     Manage regulated medication schedules (iPLEDGE, biologics, REMS).
@@ -161,9 +184,62 @@ def medication_schedule(
             patient_category=patient_category,
             start_date=sd,
             created_by=created_by or "agent",
+            duration_months=duration_months,
         )
         if result.get("success") and result.get("schedule"):
             return result
+        return result
+
+    if action == "extend":
+        if not schedule_id and not patient_id:
+            return {"success": False, "error": "schedule_id or patient_id required for extend"}
+        if not duration_months:
+            return {"success": False, "error": "duration_months required for extend (how many months to add)"}
+        result = extend_medication_schedule(
+            schedule_id=schedule_id,
+            patient_id=patient_id,
+            duration_months=duration_months or 3,
+        )
+        return result
+
+    if action == "complete_treatment":
+        if not schedule_id and not patient_id:
+            return {"success": False, "error": "schedule_id or patient_id required for complete_treatment"}
+        result = complete_treatment(
+            schedule_id=schedule_id,
+            patient_id=patient_id,
+            notes=notes or "",
+        )
+        return result
+
+    if action == "discontinue":
+        if not schedule_id and not patient_id:
+            return {"success": False, "error": "schedule_id or patient_id required for discontinue"}
+        result = discontinue_medication_schedule(
+            schedule_id=schedule_id,
+            patient_id=patient_id,
+            reason=reason or "Discontinued",
+            discontinued_by=created_by or "agent",
+        )
+        return result
+
+    if action == "pause":
+        if not schedule_id and not patient_id:
+            return {"success": False, "error": "schedule_id or patient_id required for pause"}
+        result = pause_medication_schedule(
+            schedule_id=schedule_id,
+            patient_id=patient_id,
+            notes=notes or "",
+        )
+        return result
+
+    if action == "resume":
+        if not schedule_id and not patient_id:
+            return {"success": False, "error": "schedule_id or patient_id required for resume"}
+        result = resume_medication_schedule(
+            schedule_id=schedule_id,
+            patient_id=patient_id,
+        )
         return result
 
     if action == "status":

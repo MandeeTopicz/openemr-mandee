@@ -191,6 +191,7 @@ def create_medication_schedule(
     patient_category: str,
     start_date: str,
     created_by: str = "agent",
+    duration_months: int | None = None,
 ) -> dict[str, Any]:
     """Create a new medication compliance schedule."""
     url = _module_url("med_schedule.php")
@@ -201,6 +202,8 @@ def create_medication_schedule(
         "created_by": created_by,
         "start_date": start_date,
     }
+    if duration_months is not None:
+        payload["duration_months"] = duration_months
     try:
         with httpx.Client(timeout=15.0) as client:
             resp = client.post(url, params={"action": "create_schedule"}, json=payload)
@@ -291,6 +294,111 @@ def get_dashboard_alerts() -> dict[str, Any]:
     try:
         with httpx.Client(timeout=10.0) as client:
             resp = client.get(url, params={"action": "get_all_active"})
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def extend_medication_schedule(
+    schedule_id: int | None = None,
+    patient_id: int | None = None,
+    duration_months: int = 3,
+) -> dict[str, Any]:
+    """Extend an existing medication schedule by adding more monthly milestones."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "duration_months": duration_months,
+    }
+    if schedule_id is not None:
+        payload["schedule_id"] = schedule_id
+    if patient_id is not None:
+        payload["patient_id"] = patient_id
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(url, params={"action": "extend_schedule"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def complete_treatment(
+    schedule_id: int | None = None,
+    patient_id: int | None = None,
+    notes: str = "",
+) -> dict[str, Any]:
+    """Mark schedule as completing and add final pregnancy test for FCBP if applicable."""
+    url = _module_url("med_schedule.php")
+    payload: dict[str, Any] = {"notes": notes}
+    if schedule_id is not None:
+        payload["schedule_id"] = schedule_id
+    if patient_id is not None:
+        payload["patient_id"] = patient_id
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, params={"action": "complete_treatment"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def discontinue_medication_schedule(
+    schedule_id: int | None = None,
+    patient_id: int | None = None,
+    reason: str = "Discontinued",
+    discontinued_by: str = "agent",
+) -> dict[str, Any]:
+    """Discontinue a medication schedule (stop early with reason)."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "cancelled_reason": reason,
+        "cancelled_by": discontinued_by,
+    }
+    if schedule_id is not None:
+        payload["schedule_id"] = schedule_id
+    if patient_id is not None:
+        payload["patient_id"] = patient_id
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, params={"action": "discontinue_schedule"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def pause_medication_schedule(
+    schedule_id: int | None = None,
+    patient_id: int | None = None,
+    notes: str = "",
+) -> dict[str, Any]:
+    """Pause a medication schedule temporarily."""
+    url = _module_url("med_schedule.php")
+    payload: dict[str, Any] = {"notes": notes}
+    if schedule_id is not None:
+        payload["schedule_id"] = schedule_id
+    if patient_id is not None:
+        payload["patient_id"] = patient_id
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, params={"action": "pause_schedule"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def resume_medication_schedule(
+    schedule_id: int | None = None,
+    patient_id: int | None = None,
+) -> dict[str, Any]:
+    """Resume a paused medication schedule and shift pending milestone dates forward."""
+    url = _module_url("med_schedule.php")
+    payload: dict[str, Any] = {}
+    if schedule_id is not None:
+        payload["schedule_id"] = schedule_id
+    if patient_id is not None:
+        payload["patient_id"] = patient_id
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, params={"action": "resume_schedule"}, json=payload)
             return resp.json()
     except (httpx.HTTPError, ValueError):
         return {"success": False, "error": "Request failed"}

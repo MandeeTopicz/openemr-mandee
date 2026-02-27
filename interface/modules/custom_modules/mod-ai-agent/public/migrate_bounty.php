@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS patient_med_schedules (
     patient_id BIGINT NOT NULL,
     protocol_id INT NOT NULL,
     patient_category VARCHAR(50) NOT NULL,
-    status ENUM('initiating', 'active', 'completing', 'completed', 'cancelled') DEFAULT 'initiating',
+    status ENUM('initiating', 'active', 'completing', 'completed', 'cancelled', 'paused') DEFAULT 'initiating',
     created_by VARCHAR(100) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

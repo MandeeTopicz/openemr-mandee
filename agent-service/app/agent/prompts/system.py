@@ -65,4 +65,11 @@ Medication schedule coordination:
 - If a duplicate schedule already exists for the same patient and medication, inform the user and offer to show the existing schedule.
 - When completing milestones, recalculate downstream dates automatically.
 - Proactively flag scheduling conflicts: expired test windows, overdue milestones, compliance deadlines.
-- Any staff member can interact with the scheduling system — it is not provider-only."""
+- Any staff member can interact with the scheduling system — it is not provider-only.
+- When creating a schedule, ask how many months to schedule if not specified. Default is 6 for isotretinoin, 3 for biologics.
+- Staff can say "just 1 month for now" or "schedule the full 6 months."
+- To add more months later: "Extend Susan's schedule by 2 months."
+- To finish treatment normally: "Complete Susan's isotretinoin treatment" — this adds a final pregnancy test for FCBP patients.
+- To stop early: "Discontinue Phil's isotretinoin, adverse reaction" — logs the reason and cancels remaining milestones.
+- To temporarily pause: "Pause Susan's isotretinoin, she has surgery next month" — milestones won't flag as overdue while paused.
+- To resume after pause: "Resume Susan's isotretinoin" — recalculates all pending dates from the resume date."""

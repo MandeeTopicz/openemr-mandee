@@ -176,6 +176,7 @@ switch ($action) {
         $patientCategory = $body['patient_category'] ?? 'male';
         $createdBy = $body['created_by'] ?? 'agent';
         $startDate = $body['start_date'] ?? date('Y-m-d');
+        $durationMonthsOverride = isset($body['duration_months']) ? (int)$body['duration_months'] : null;
 
         if (!$patientId || !$medication) {
             jsonResp(['success' => false, 'error' => 'patient_id and medication required']);
@@ -233,8 +234,10 @@ switch ($action) {
             }
 
             $monthlyCycle = json_decode($protocol['monthly_cycle'] ?? '{}', true);
-            $durationMonths = $monthlyCycle['typical_duration_months'] ?? 6;
-            if ($durationMonths && !empty($monthlyCycle['steps'])) {
+            $protocolType = $protocol['protocol_type'] ?? '';
+            $defaultDuration = ($protocolType === 'biologic' || empty($monthlyCycle['typical_duration_months'])) ? 3 : 6;
+            $durationMonths = $durationMonthsOverride ?? ($monthlyCycle['typical_duration_months'] ?? $defaultDuration);
+            if ($durationMonths > 0 && !empty($monthlyCycle['steps'])) {
                 $cycleSteps = $monthlyCycle['steps'];
                 $stepNum = count($steps) + 1;
                 $firstPrescDate = $startDate;
@@ -397,7 +400,235 @@ switch ($action) {
             }
         }
 
+        $schedCheck = $pdo->prepare("SELECT status FROM patient_med_schedules WHERE id = ?");
+        $schedCheck->execute([$scheduleId]);
+        $schedRow = $schedCheck->fetch();
+        if ($schedRow && ($schedRow['status'] ?? '') === 'paused') {
+            $conflicts = [];
+        }
         jsonResp(['success' => true, 'conflicts' => $conflicts]);
+        break;
+
+    case 'extend_schedule':
+        $scheduleId = (int)($body['schedule_id'] ?? 0);
+        $patientId = (int)($body['patient_id'] ?? 0);
+        $durationMonths = (int)($body['duration_months'] ?? 3);
+        if ($durationMonths < 1) {
+            jsonResp(['success' => false, 'error' => 'duration_months must be at least 1']);
+            break;
+        }
+        $sched = null;
+        if ($scheduleId) {
+            $sStmt = $pdo->prepare("SELECT s.*, p.medication_name, p.protocol_type FROM patient_med_schedules s JOIN medication_protocols p ON p.id = s.protocol_id WHERE s.id = ? AND s.status IN ('initiating','active','completing')");
+            $sStmt->execute([$scheduleId]);
+            $sched = $sStmt->fetch();
+        } elseif ($patientId) {
+            $sStmt = $pdo->prepare("SELECT s.*, p.medication_name, p.protocol_type FROM patient_med_schedules s JOIN medication_protocols p ON p.id = s.protocol_id WHERE s.patient_id = ? AND s.status IN ('initiating','active','completing') ORDER BY s.id DESC LIMIT 1");
+            $sStmt->execute([$patientId]);
+            $sched = $sStmt->fetch();
+        }
+        if (!$sched) {
+            jsonResp(['success' => false, 'error' => 'Active schedule not found']);
+            break;
+        }
+        $lastMStmt = $pdo->prepare("SELECT due_date FROM schedule_milestones WHERE schedule_id = ? ORDER BY step_number DESC LIMIT 1");
+        $lastMStmt->execute([$sched['id']]);
+        $lastM = $lastMStmt->fetch();
+        $baseDate = $lastM['due_date'] ?? $sched['start_date'] ?? date('Y-m-d');
+        $protocol = getProtocol($pdo, $sched['medication_name'], $sched['patient_category']);
+        $monthlyCycle = json_decode($protocol['monthly_cycle'] ?? '{}', true);
+        $cycleSteps = $monthlyCycle['steps'] ?? [];
+        if (empty($cycleSteps)) {
+            jsonResp(['success' => false, 'error' => 'Protocol has no monthly cycle steps']);
+            break;
+        }
+        $countStmt = $pdo->prepare("SELECT MAX(step_number) as mx FROM schedule_milestones WHERE schedule_id = ?");
+        $countStmt->execute([$sched['id']]);
+        $stepNum = (int)($countStmt->fetch()['mx'] ?? 0) + 1;
+        $maxMonthStmt = $pdo->prepare("SELECT step_name FROM schedule_milestones WHERE schedule_id = ? AND step_name REGEXP '_m[0-9]+\$' ORDER BY step_number DESC LIMIT 1");
+        $maxMonthStmt->execute([$sched['id']]);
+        $lastStep = $maxMonthStmt->fetch();
+        $startMonth = 1;
+        if ($lastStep && preg_match('/_m(\d+)$/', $lastStep['step_name'], $mm)) {
+            $startMonth = (int)$mm[1] + 1;
+        }
+        $baseTs = strtotime($baseDate);
+        for ($i = 1; $i <= $durationMonths; $i++) {
+            $monthIdx = $startMonth + $i - 1;
+            $monthStart = date('Y-m-d', strtotime("+{$i} months", $baseTs));
+            foreach ($cycleSteps as $cs) {
+                $due = $monthStart;
+                $windowEnd = date('Y-m-d', strtotime('+7 days', strtotime($due)));
+                $mIns = $pdo->prepare("INSERT INTO schedule_milestones (schedule_id, step_number, step_name, step_type, description, due_date, window_start, window_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $mIns->execute([
+                    $sched['id'],
+                    $stepNum++,
+                    ($cs['name'] ?? 'step') . '_m' . $monthIdx,
+                    $cs['type'] ?? 'lab',
+                    $cs['description'] ?? null,
+                    $due,
+                    $due,
+                    $windowEnd,
+                ]);
+                $inserted++;
+            }
+        }
+        $schedStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ?");
+        $schedStmt->execute([$sched['id']]);
+        $schedule = $schedStmt->fetch();
+        $mStmt = $pdo->prepare("SELECT * FROM schedule_milestones WHERE schedule_id = ? ORDER BY step_number");
+        $mStmt->execute([$sched['id']]);
+        $schedule['milestones'] = $mStmt->fetchAll();
+        $schedule['protocol_id'] = $sched['protocol_id'];
+        $schedule['patient_id'] = $sched['patient_id'];
+        $schedule['medication_name'] = $sched['medication_name'];
+        $schedule['protocol_type'] = $sched['protocol_type'];
+        jsonResp(['success' => true, 'schedule' => $schedule, 'months_added' => $durationMonths]);
+        break;
+
+    case 'complete_treatment':
+        $scheduleId = (int)($body['schedule_id'] ?? 0);
+        $patientId = (int)($body['patient_id'] ?? 0);
+        $notes = $body['notes'] ?? '';
+        $sched = null;
+        if ($scheduleId) {
+            $sStmt = $pdo->prepare("SELECT s.*, p.medication_name, p.protocol_type, p.completion_steps FROM patient_med_schedules s JOIN medication_protocols p ON p.id = s.protocol_id WHERE s.id = ? AND s.status IN ('initiating','active')");
+            $sStmt->execute([$scheduleId]);
+            $sched = $sStmt->fetch();
+        } elseif ($patientId) {
+            $sStmt = $pdo->prepare("SELECT s.*, p.medication_name, p.protocol_type, p.completion_steps FROM patient_med_schedules s JOIN medication_protocols p ON p.id = s.protocol_id WHERE s.patient_id = ? AND s.status IN ('initiating','active') ORDER BY s.id DESC LIMIT 1");
+            $sStmt->execute([$patientId]);
+            $sched = $sStmt->fetch();
+        }
+        if (!$sched) {
+            jsonResp(['success' => false, 'error' => 'Active schedule not found']);
+            break;
+        }
+        $pdo->prepare("UPDATE schedule_milestones SET status = 'skipped' WHERE schedule_id = ? AND status IN ('pending','scheduled','overdue')")->execute([$sched['id']]);
+        $pdo->prepare("UPDATE patient_med_schedules SET status = 'completing', notes = ? WHERE id = ?")->execute([$notes, $sched['id']]);
+        $completionSteps = json_decode($sched['completion_steps'] ?? '[]', true);
+        $patientCat = $sched['patient_category'] ?? '';
+        if (!empty($completionSteps) && $patientCat === 'fcbp') {
+            foreach ($completionSteps as $cs) {
+                $dueDate = date('Y-m-d', strtotime('+30 days'));
+                $windowEnd = date('Y-m-d', strtotime('+7 days', strtotime($dueDate)));
+                $stepNumStmt = $pdo->prepare("SELECT COALESCE(MAX(step_number), 0) + 1 as n FROM schedule_milestones WHERE schedule_id = ?");
+                $stepNumStmt->execute([$sched['id']]);
+                $sn = $stepNumStmt->fetch()['n'];
+                $mIns = $pdo->prepare("INSERT INTO schedule_milestones (schedule_id, step_number, step_name, step_type, description, due_date, window_start, window_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $mIns->execute([$sched['id'], $sn, $cs['name'] ?? 'final', $cs['type'] ?? 'lab', $cs['description'] ?? null, $dueDate, $dueDate, $windowEnd]);
+            }
+        } else {
+            $pdo->prepare("UPDATE patient_med_schedules SET status = 'completed' WHERE id = ?")->execute([$sched['id']]);
+        }
+        $schedStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ?");
+        $schedStmt->execute([$sched['id']]);
+        $schedule = $schedStmt->fetch();
+        $mStmt = $pdo->prepare("SELECT * FROM schedule_milestones WHERE schedule_id = ? ORDER BY step_number");
+        $mStmt->execute([$sched['id']]);
+        $schedule['milestones'] = $mStmt->fetchAll();
+        jsonResp(['success' => true, 'schedule' => $schedule]);
+        break;
+
+    case 'discontinue_schedule':
+        $scheduleId = (int)($body['schedule_id'] ?? 0);
+        $patientId = (int)($body['patient_id'] ?? 0);
+        $reason = $body['cancelled_reason'] ?? $body['reason'] ?? 'Discontinued';
+        $cancelledBy = $body['cancelled_by'] ?? 'agent';
+        $sched = null;
+        if ($scheduleId) {
+            $sStmt = $pdo->prepare("SELECT id FROM patient_med_schedules WHERE id = ? AND status NOT IN ('completed','cancelled')");
+            $sStmt->execute([$scheduleId]);
+            $sched = $sStmt->fetch();
+        } elseif ($patientId) {
+            $sStmt = $pdo->prepare("SELECT id FROM patient_med_schedules WHERE patient_id = ? AND status NOT IN ('completed','cancelled') ORDER BY id DESC LIMIT 1");
+            $sStmt->execute([$patientId]);
+            $sched = $sStmt->fetch();
+        }
+        if (!$sched) {
+            jsonResp(['success' => false, 'error' => 'Active schedule not found']);
+            break;
+        }
+        $sid = $sched['id'];
+        $pdo->prepare("UPDATE patient_med_schedules SET status = 'cancelled', cancelled_reason = ? WHERE id = ?")->execute([$reason, $sid]);
+        $pdo->prepare("UPDATE schedule_milestones SET status = 'cancelled' WHERE schedule_id = ? AND status IN ('pending','scheduled','overdue')")->execute([$sid]);
+        jsonResp(['success' => true, 'message' => 'Schedule discontinued', 'reason' => $reason]);
+        break;
+
+    case 'pause_schedule':
+        $scheduleId = (int)($body['schedule_id'] ?? 0);
+        $patientId = (int)($body['patient_id'] ?? 0);
+        $notes = $body['notes'] ?? '';
+        $sched = null;
+        if ($scheduleId) {
+            $sStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ? AND status IN ('initiating','active','completing')");
+            $sStmt->execute([$scheduleId]);
+            $sched = $sStmt->fetch();
+        } elseif ($patientId) {
+            $sStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE patient_id = ? AND status IN ('initiating','active','completing') ORDER BY id DESC LIMIT 1");
+            $sStmt->execute([$patientId]);
+            $sched = $sStmt->fetch();
+        }
+        if (!$sched) {
+            jsonResp(['success' => false, 'error' => 'Active schedule not found']);
+            break;
+        }
+        try {
+            $pdo->exec("ALTER TABLE patient_med_schedules MODIFY COLUMN status ENUM('initiating', 'active', 'completing', 'completed', 'cancelled', 'paused') DEFAULT 'initiating'");
+        } catch (PDOException $e) {
+        }
+        $pauseNote = 'Paused on ' . date('Y-m-d') . ($notes ? ': ' . $notes : '');
+        $pdo->prepare("UPDATE patient_med_schedules SET status = 'paused', notes = CONCAT(COALESCE(notes,''), CHAR(10), ?) WHERE id = ?")->execute([$pauseNote, $sched['id']]);
+        $schedStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ?");
+        $schedStmt->execute([$sched['id']]);
+        $schedule = $schedStmt->fetch();
+        $mStmt = $pdo->prepare("SELECT * FROM schedule_milestones WHERE schedule_id = ? ORDER BY step_number");
+        $mStmt->execute([$sched['id']]);
+        $schedule['milestones'] = $mStmt->fetchAll();
+        jsonResp(['success' => true, 'schedule' => $schedule, 'message' => 'Schedule paused']);
+        break;
+
+    case 'resume_schedule':
+        $scheduleId = (int)($body['schedule_id'] ?? 0);
+        $patientId = (int)($body['patient_id'] ?? 0);
+        $sched = null;
+        if ($scheduleId) {
+            $sStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ? AND status = 'paused'");
+            $sStmt->execute([$scheduleId]);
+            $sched = $sStmt->fetch();
+        } elseif ($patientId) {
+            $sStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE patient_id = ? AND status = 'paused' ORDER BY id DESC LIMIT 1");
+            $sStmt->execute([$patientId]);
+            $sched = $sStmt->fetch();
+        }
+        if (!$sched) {
+            jsonResp(['success' => false, 'error' => 'Paused schedule not found']);
+            break;
+        }
+        $notes = $sched['notes'] ?? '';
+        if (preg_match('/Paused on (\d{4}-\d{2}-\d{2})/', $notes, $m)) {
+            $pauseDate = $m[1];
+        } else {
+            $pauseDate = date('Y-m-d', strtotime('-1 day'));
+        }
+        $daysPaused = (strtotime(date('Y-m-d')) - strtotime($pauseDate)) / 86400;
+        $daysPaused = max(0, (int)$daysPaused);
+        $pdo->prepare("UPDATE patient_med_schedules SET status = 'active' WHERE id = ?")->execute([$sched['id']]);
+        $mStmt = $pdo->prepare("SELECT id, due_date, window_start, window_end FROM schedule_milestones WHERE schedule_id = ? AND status IN ('pending','scheduled','overdue')");
+        $mStmt->execute([$sched['id']]);
+        foreach ($mStmt->fetchAll() as $mil) {
+            $newDue = date('Y-m-d', strtotime("+{$daysPaused} days", strtotime($mil['due_date'])));
+            $newWs = $mil['window_start'] ? date('Y-m-d', strtotime("+{$daysPaused} days", strtotime($mil['window_start']))) : null;
+            $newWe = $mil['window_end'] ? date('Y-m-d', strtotime("+{$daysPaused} days", strtotime($mil['window_end']))) : null;
+            $pdo->prepare("UPDATE schedule_milestones SET due_date = ?, window_start = ?, window_end = ? WHERE id = ?")->execute([$newDue, $newWs ?: $newDue, $newWe ?: $newDue, $mil['id']]);
+        }
+        $schedStmt = $pdo->prepare("SELECT * FROM patient_med_schedules WHERE id = ?");
+        $schedStmt->execute([$sched['id']]);
+        $schedule = $schedStmt->fetch();
+        $mStmt = $pdo->prepare("SELECT * FROM schedule_milestones WHERE schedule_id = ? ORDER BY step_number");
+        $mStmt->execute([$sched['id']]);
+        $schedule['milestones'] = $mStmt->fetchAll();
+        jsonResp(['success' => true, 'schedule' => $schedule, 'days_shifted' => $daysPaused]);
         break;
 
     default:
