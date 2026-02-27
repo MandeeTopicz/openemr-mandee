@@ -302,7 +302,20 @@ class ChatWidgetController
             const input = document.getElementById('ctz-chat-input');
             const sendBtn = document.getElementById('ctz-chat-send');
             const chatUrl = <?php echo json_encode($chatUrl); ?>;
-            const sessionId = "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+            function getCookie(name) {
+                const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                return match ? match[2] : null;
+            }
+            function setCookie(name, value, days) {
+                const d = new Date();
+                d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+                document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/';
+            }
+            let sessionId = getCookie('ctz_session_id');
+            if (!sessionId) {
+                sessionId = "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+                setCookie('ctz_session_id', sessionId, 7);
+            }
             const csrf = <?php echo json_encode($csrfToken); ?>;
             const toolsCalledLabel = <?php echo json_encode(xlt('Tools Called')); ?>;
             const errorConnectLabel = <?php echo json_encode(xla("I'm having trouble connecting right now. Please try again in a moment.")); ?>;

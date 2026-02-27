@@ -41,6 +41,8 @@ from app.tools.patient_education_generator import (
     PatientEducationInput,
     patient_education_generator as _patient_education_generator,
 )
+from app.tools.cancel_schedule import CancelScheduleInput
+from app.tools.cancel_schedule import cancel_schedule as _cancel_schedule
 from app.tools.med_schedule import MedicationScheduleInput
 from app.tools.med_schedule import medication_schedule as _medication_schedule
 from app.tools.provider_search import ProviderSearchInput

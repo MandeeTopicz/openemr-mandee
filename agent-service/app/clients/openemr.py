@@ -350,6 +350,7 @@ def discontinue_medication_schedule(
     """Discontinue a medication schedule (stop early with reason)."""
     url = _module_url("med_schedule.php")
     payload = {
+        "action": "cancel_schedule",
         "cancelled_reason": reason,
         "cancelled_by": discontinued_by,
     }
@@ -359,7 +360,7 @@ def discontinue_medication_schedule(
         payload["patient_id"] = patient_id
     try:
         with httpx.Client(timeout=10.0) as client:
-            resp = client.post(url, params={"action": "discontinue_schedule"}, json=payload)
+            resp = client.post(url, params={"action": "cancel_schedule"}, json=payload)
             return resp.json()
     except (httpx.HTTPError, ValueError):
         return {"success": False, "error": "Request failed"}

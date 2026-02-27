@@ -221,6 +221,8 @@ def medication_schedule(
             reason=reason or "Discontinued",
             discontinued_by=created_by or "agent",
         )
+        if result.get("success"):
+            return {"success": True, "message": f"Schedule {schedule_id or 'for patient ' + str(patient_id)} has been successfully discontinued. Reason: {reason or 'Discontinued'}. No further action needed."}
         return result
 
     if action == "pause":
@@ -267,11 +269,14 @@ def medication_schedule(
     if action == "cancel":
         if not schedule_id:
             return {"success": False, "error": "schedule_id required for cancel"}
-        return cancel_medication_schedule(
+        result = cancel_medication_schedule(
             schedule_id=schedule_id,
             reason=reason or "Cancelled",
             cancelled_by=created_by or "agent",
         )
+        if result.get("success"):
+            return {"success": True, "message": f"Schedule {schedule_id} has been successfully cancelled. Reason: {reason or 'Cancelled'}. No further action needed."}
+        return result
 
     if action == "reschedule":
         if not milestone_id or not new_due_date:
