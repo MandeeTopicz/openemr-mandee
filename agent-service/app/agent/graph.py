@@ -149,7 +149,7 @@ def _extract_tools_used(messages: list, max_summary_len: int = 120) -> list[dict
 
 
 @traceable(name="invoke_graph")
-def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tuple[str, RequestMetrics]:
+def invoke_graph(user_message: str, metrics: RequestMetrics | None = None, history: list | None = None) -> tuple[str, RequestMetrics]:
     """
     Run the graph with a user message and return the verified response plus metrics.
     Response passes through fact check, confidence scoring, and domain rules.
@@ -159,8 +159,12 @@ def invoke_graph(user_message: str, metrics: RequestMetrics | None = None) -> tu
 
     graph = get_graph()
     t_graph = time.perf_counter()
+    msgs = []
+    if history:
+        msgs.extend(history)
+    msgs.append(HumanMessage(content=user_message))
     result = graph.invoke(
-        {"messages": [HumanMessage(content=user_message)]}
+        {"messages": msgs}
     )
     m.graph_ms = (time.perf_counter() - t_graph) * 1000
 

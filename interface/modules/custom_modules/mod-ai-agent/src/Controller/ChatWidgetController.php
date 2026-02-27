@@ -302,6 +302,7 @@ class ChatWidgetController
             const input = document.getElementById('ctz-chat-input');
             const sendBtn = document.getElementById('ctz-chat-send');
             const chatUrl = <?php echo json_encode($chatUrl); ?>;
+            const sessionId = "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
             const csrf = <?php echo json_encode($csrfToken); ?>;
             const toolsCalledLabel = <?php echo json_encode(xlt('Tools Called')); ?>;
             const errorConnectLabel = <?php echo json_encode(xla("I'm having trouble connecting right now. Please try again in a moment.")); ?>;
@@ -432,7 +433,7 @@ class ChatWidgetController
                 fetch(chatUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg, csrf_token: csrf }),
+                    body: JSON.stringify({ message: msg, csrf_token: csrf, session_id: sessionId }),
                     credentials: 'same-origin',
                     signal: abortCtrl.signal
                 }).then(function(r) {

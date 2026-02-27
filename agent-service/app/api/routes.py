@@ -38,6 +38,13 @@ async def metrics():
     return get_metrics_report()
 
 
+from collections import defaultdict
+from langchain_core.messages import HumanMessage, AIMessage
+
+# In-memory conversation history keyed by session_id (last 10 messages per session)
+_session_history: dict[str, list] = defaultdict(list)
+_MAX_HISTORY = 10
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: Request):
     """
@@ -52,7 +59,15 @@ async def chat(request: Request):
         )
 
     try:
-        response_text, metrics, tools_used = await asyncio.to_thread(invoke_graph, msg)
+        session_id = body.get("session_id") or "default"
+        history = list(_session_history.get(session_id, []))
+        response_text, metrics, tools_used = await asyncio.to_thread(invoke_graph, msg, None, history)
+        # Store conversation turn
+        _session_history[session_id].append(HumanMessage(content=msg))
+        _session_history[session_id].append(AIMessage(content=response_text))
+        # Trim to last N messages
+        if len(_session_history[session_id]) > _MAX_HISTORY * 2:
+            _session_history[session_id] = _session_history[session_id][-_MAX_HISTORY * 2:]
     except ValueError as e:
         if "ANTHROPIC_API_KEY" in str(e):
             raise HTTPException(
