@@ -136,17 +136,25 @@ def search_medication_requests(
     return fhir_get("MedicationRequest", params=params)
 
 
+def _openemr_module_base() -> str:
+    """Derive OpenEMR base URL from FHIR URL for module endpoints."""
+    base = settings.openemr_fhir_base_url.rstrip("/")
+    parts = base.split("/apis/")
+    return parts[0] if parts else "http://openemr"
+
+
+def _module_url(path: str) -> str:
+    """Build URL for mod-ai-agent public PHP endpoints."""
+    base = _openemr_module_base()
+    return f"{base}/interface/modules/custom_modules/mod-ai-agent/public/{path}"
+
+
 def search_providers_direct(name: str | None = None) -> list[dict[str, Any]]:
     """
     Search OpenEMR providers via the internal PHP endpoint (bypasses FHIR/OAuth).
     Returns list of provider dicts or empty list on error.
     """
-    base = settings.openemr_fhir_base_url.rstrip("/")
-    # Derive the OpenEMR base URL from the FHIR URL
-    # e.g. http://openemr/apis/default/fhir -> http://openemr
-    parts = base.split("/apis/")
-    openemr_base = parts[0] if parts else "http://openemr"
-    url = f"{openemr_base}/interface/modules/custom_modules/mod-ai-agent/public/providers.php"
+    url = _module_url("providers.php")
     params = {}
     if name:
         params["name"] = name
@@ -159,3 +167,130 @@ def search_providers_direct(name: str | None = None) -> list[dict[str, Any]]:
             return data.get("providers", [])
     except (httpx.HTTPError, ValueError):
         return []
+
+
+def get_patient_demographics(patient_id: int) -> dict[str, Any] | None:
+    """Fetch patient name, sex, DOB from OpenEMR."""
+    url = _module_url("patient_info.php")
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params={"pid": patient_id})
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if not data.get("success"):
+                return None
+            return data.get("patient")
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+def create_medication_schedule(
+    patient_id: int,
+    medication: str,
+    patient_category: str,
+    start_date: str,
+    created_by: str = "agent",
+) -> dict[str, Any]:
+    """Create a new medication compliance schedule."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "patient_id": patient_id,
+        "medication": medication,
+        "patient_category": patient_category,
+        "created_by": created_by,
+        "start_date": start_date,
+    }
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, params={"action": "create_schedule"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def get_medication_schedule(patient_id: int) -> dict[str, Any]:
+    """Get active medication schedule for a patient."""
+    url = _module_url("med_schedule.php")
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params={"action": "get_schedule", "patient_id": patient_id})
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def complete_milestone(
+    milestone_id: int,
+    completed_by: str,
+    completed_date: str,
+    notes: str = "",
+) -> dict[str, Any]:
+    """Mark a milestone as completed."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "milestone_id": milestone_id,
+        "completed_by": completed_by,
+        "completed_date": completed_date,
+        "notes": notes,
+    }
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, params={"action": "complete_milestone"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def cancel_medication_schedule(schedule_id: int, reason: str, cancelled_by: str) -> dict[str, Any]:
+    """Cancel a medication schedule."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "schedule_id": schedule_id,
+        "cancelled_reason": reason,
+        "cancelled_by": cancelled_by,
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.post(url, params={"action": "cancel_schedule"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def reschedule_milestone(milestone_id: int, new_due_date: str, rescheduled_by: str) -> dict[str, Any]:
+    """Reschedule a milestone to a new date."""
+    url = _module_url("med_schedule.php")
+    payload = {
+        "milestone_id": milestone_id,
+        "new_due_date": new_due_date,
+        "rescheduled_by": rescheduled_by,
+    }
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, params={"action": "reschedule_milestone"}, json=payload)
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def check_schedule_conflicts(schedule_id: int) -> dict[str, Any]:
+    """Check for scheduling conflicts."""
+    url = _module_url("med_schedule.php")
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params={"action": "check_conflicts", "schedule_id": schedule_id})
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}
+
+
+def get_dashboard_alerts() -> dict[str, Any]:
+    """Get all active schedules with upcoming/overdue milestones."""
+    url = _module_url("med_schedule.php")
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url, params={"action": "get_all_active"})
+            return resp.json()
+    except (httpx.HTTPError, ValueError):
+        return {"success": False, "error": "Request failed"}

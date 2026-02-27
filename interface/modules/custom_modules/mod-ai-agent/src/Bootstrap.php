@@ -14,8 +14,9 @@ namespace OpenEMR\Modules\AIAgent;
 
 use OpenEMR\Common\Logging\SystemLogger;
 use OpenEMR\Core\OEGlobalsBag;
-use OpenEMR\Events\UserInterface\PageHeadingRenderEvent;
 use OpenEMR\Events\Main\Tabs\RenderEvent;
+use OpenEMR\Events\PatientDemographics\RenderEvent as PatientRenderEvent;
+use OpenEMR\Events\UserInterface\PageHeadingRenderEvent;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Bootstrap
@@ -43,6 +44,28 @@ class Bootstrap
             $this->renderChatWidgetOnMainTabs(...),
             10
         );
+        $this->eventDispatcher->addListener(
+            PatientRenderEvent::EVENT_SECTION_LIST_RENDER_TOP,
+            $this->renderMedScheduleBanner(...),
+            10
+        );
+    }
+
+    public function renderMedScheduleBanner(PatientRenderEvent $event): void
+    {
+        $pid = $event->getPid();
+        if (empty($pid)) {
+            return;
+        }
+        if (isset($GLOBALS['ai_agent_enabled']) && !$GLOBALS['ai_agent_enabled']) {
+            return;
+        }
+        try {
+            $controller = new Controller\ChatWidgetController();
+            echo $controller->renderMedScheduleBanner((int) $pid);
+        } catch (\Throwable $e) {
+            $this->logger->error("AIAgent: Error rendering med schedule banner", ['error' => $e->getMessage()]);
+        }
     }
 
     public function renderChatWidget(PageHeadingRenderEvent $event): PageHeadingRenderEvent

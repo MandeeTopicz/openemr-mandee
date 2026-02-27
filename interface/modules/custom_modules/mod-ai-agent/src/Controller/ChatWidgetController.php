@@ -19,6 +19,104 @@ use OpenEMR\Modules\AIAgent\Bootstrap;
 class ChatWidgetController
 {
     /**
+     * Render medication schedule status banner on patient dashboard.
+     * Green: all current, next > 7 days. Yellow: next due within 7 days. Red: overdue.
+     */
+    public function renderMedScheduleBanner(int $pid): string
+    {
+        $siteDir = $GLOBALS['OE_SITE_DIR'] ?? '/var/www/localhost/htdocs/openemr/sites/default';
+        $sqlConfFile = $siteDir . '/sqlconf.php';
+        if (!file_exists($sqlConfFile)) {
+            return '';
+        }
+        include $sqlConfFile;
+        try {
+            $dsn = "mysql:host={$host};dbname={$dbase};charset=utf8mb4";
+            $pdo = new \PDO($dsn, $login, $pass, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            ]);
+        } catch (\PDOException $e) {
+            return '';
+        }
+        $stmt = $pdo->prepare("
+            SELECT s.id, s.patient_category, s.status, p.medication_name, p.protocol_type
+            FROM patient_med_schedules s
+            JOIN medication_protocols p ON p.id = s.protocol_id
+            WHERE s.patient_id = ? AND s.status IN ('initiating','active','completing')
+        ");
+        $stmt->execute([$pid]);
+        $schedules = $stmt->fetchAll();
+        if (!$schedules) {
+            return '';
+        }
+        $today = date('Y-m-d');
+        $severity = 'green';
+        $bannerLines = [];
+        foreach ($schedules as $sched) {
+            $mStmt = $pdo->prepare("
+                SELECT step_name, due_date, window_end, status
+                FROM schedule_milestones
+                WHERE schedule_id = ? AND status IN ('pending','scheduled','overdue')
+                ORDER BY due_date ASC LIMIT 1
+            ");
+            $mStmt->execute([$sched['id']]);
+            $next = $mStmt->fetch();
+            $proto = strtoupper($sched['protocol_type'] ?? 'REMS');
+            $med = $sched['medication_name'] ?? 'Medication';
+            if (!$next) {
+                $bannerLines[] = sprintf(
+                    '%s ACTIVE — %s — %s — All milestones complete',
+                    $proto,
+                    $med,
+                    ucfirst($sched['status'])
+                );
+                continue;
+            }
+            $due = $next['due_date'] ?? '';
+            $wend = $next['window_end'] ?? '';
+            $isOverdue = ($due && $due < $today) || ($wend && $wend < $today);
+            $daysUntil = $due ? (strtotime($due) - strtotime($today)) / 86400 : 999;
+            if ($isOverdue) {
+                $severity = 'red';
+                $bannerLines[] = sprintf(
+                    '%s — ACTION REQUIRED — %s %s overdue (was due %s)',
+                    $proto,
+                    $med,
+                    $next['step_name'] ?? 'milestone',
+                    $due
+                );
+            } elseif ($daysUntil <= 7 && $daysUntil >= 0) {
+                if ($severity !== 'red') {
+                    $severity = 'yellow';
+                }
+                $bannerLines[] = sprintf(
+                    '%s — %s — %s due in %d days (%s)',
+                    $proto,
+                    $med,
+                    $next['step_name'] ?? 'milestone',
+                    (int) $daysUntil,
+                    $due
+                );
+            } else {
+                $bannerLines[] = sprintf(
+                    '%s ACTIVE — %s — %s — Next: %s due %s',
+                    $proto,
+                    $med,
+                    ucfirst($sched['status']),
+                    $next['step_name'] ?? 'milestone',
+                    $due
+                );
+            }
+        }
+        $text = implode(' | ', $bannerLines);
+        $bg = $severity === 'red' ? '#f8d7da' : ($severity === 'yellow' ? '#fff3cd' : '#d4edda');
+        $border = $severity === 'red' ? '#f5c6cb' : ($severity === 'yellow' ? '#ffc107' : '#c3e6cb');
+        $color = $severity === 'red' ? '#721c24' : ($severity === 'yellow' ? '#856404' : '#155724');
+        return '<div class="ctz-med-schedule-banner mb-2 px-3 py-2 rounded" style="background:' . htmlspecialchars($bg) . ';border:1px solid ' . htmlspecialchars($border) . ';color:' . htmlspecialchars($color) . ';font-size:0.95rem;">' . htmlspecialchars($text) . '</div>';
+    }
+
+    /**
      * Render floating chat button and panel.
      */
     public function renderFloatingButton(): string

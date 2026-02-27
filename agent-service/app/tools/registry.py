@@ -41,6 +41,8 @@ from app.tools.patient_education_generator import (
     PatientEducationInput,
     patient_education_generator as _patient_education_generator,
 )
+from app.tools.med_schedule import MedicationScheduleInput
+from app.tools.med_schedule import medication_schedule as _medication_schedule
 from app.tools.provider_search import ProviderSearchInput
 from app.tools.provider_search import provider_search as _provider_search
 from app.tools.symptom_lookup import SymptomLookupInput
@@ -366,11 +368,65 @@ def _build_patient_education_generator_tool() -> StructuredTool:
     )
 
 
+def _format_medication_schedule_result(data: dict) -> str:
+    """Format medication schedule result for LLM."""
+    if not data.get("success"):
+        return _tool_error_for_llm(data.get("error", "Unknown error"))
+    if data.get("_formatted"):
+        return data["_formatted"]
+    from app.tools.med_schedule import _format_schedule_status
+
+    sched = data.get("schedule")
+    pid = sched.get("patient_id") if sched else None
+    return _format_schedule_status(data, int(pid) if pid else None)
+
+
+def _run_medication_schedule(
+    action: str,
+    patient_id: int | None = None,
+    medication: str | None = None,
+    patient_category: str | None = None,
+    milestone_id: int | None = None,
+    completed_date: str | None = None,
+    new_due_date: str | None = None,
+    schedule_id: int | None = None,
+    reason: str | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    created_by: str = "agent",
+) -> str:
+    result = _medication_schedule(
+        action=action,
+        patient_id=patient_id,
+        medication=medication,
+        patient_category=patient_category,
+        milestone_id=milestone_id,
+        completed_date=completed_date,
+        new_due_date=new_due_date,
+        schedule_id=schedule_id,
+        reason=reason,
+        notes=notes,
+        start_date=start_date,
+        created_by=created_by,
+    )
+    return _format_medication_schedule_result(result)
+
+
+def _build_medication_schedule_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_medication_schedule,
+        name="medication_schedule",
+        description="Manage regulated medication schedules (iPLEDGE/isotretinoin, biologics, REMS). Create compliance schedules, check status, complete milestones, detect conflicts. Use for isotretinoin/Accutane, Humira/adalimumab, and similar protocols.",
+        args_schema=MedicationScheduleInput,
+    )
+
+
 def get_tools() -> list[StructuredTool]:
     """Return list of tools for the agent."""
     return [
         _build_drug_interaction_tool(),
         _build_symptom_lookup_tool(),
+        _build_medication_schedule_tool(),
         _build_provider_search_tool(),
         _build_insurance_provider_search_tool(),
         _build_appointment_check_tool(),

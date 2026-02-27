@@ -1,0 +1,74 @@
+[
+    {
+        "name": "start_ipledge_female",
+        "input": "Start an isotretinoin schedule for Susan Underwood",
+        "expected_contains": [],
+        "expected_contains_any": ["isotretinoin", "ipledge", "pregnancy", "schedule", "protocol"],
+        "expected_not_contains": [],
+        "min_length": 100,
+        "category": "med_schedule"
+    },
+    {
+        "name": "start_ipledge_male",
+        "input": "We're starting Phil Belford on Accutane. Set up his schedule.",
+        "expected_contains": [],
+        "expected_contains_any": ["isotretinoin", "ipledge", "accutane", "schedule", "labs", "monthly"],
+        "expected_not_contains": ["pregnancy test"],
+        "min_length": 50,
+        "category": "med_schedule"
+    },
+    {
+        "name": "check_schedule_status",
+        "input": "What's the status of Susan Underwood's isotretinoin schedule?",
+        "expected_contains": [],
+        "expected_contains_any": ["schedule", "milestone", "status", "isotretinoin", "susan"],
+        "expected_not_contains": [],
+        "min_length": 30,
+        "category": "med_schedule"
+    },
+    {
+        "name": "ipledge_asks_gender_clarification",
+        "input": "Start isotretinoin tracking for patient ID 2",
+        "expected_contains": [],
+        "expected_contains_any": ["childbearing", "female", "male", "pregnancy", "category", "confirm"],
+        "expected_not_contains": [],
+        "min_length": 30,
+        "category": "med_schedule"
+    },
+    {
+        "name": "dashboard_active_schedules",
+        "input": "Which patients have active medication schedules this week?",
+        "expected_contains": [],
+        "expected_contains_any": ["schedule", "patient", "milestone", "active", "no active"],
+        "expected_not_contains": [],
+        "min_length": 20,
+        "category": "med_schedule"
+    },
+    {
+        "name": "cancel_schedule",
+        "input": "Cancel Susan Underwood's isotretinoin schedule. Patient declined treatment.",
+        "expected_contains": [],
+        "expected_contains_any": ["cancel", "schedule", "susan", "isotretinoin"],
+        "expected_not_contains": [],
+        "min_length": 20,
+        "category": "med_schedule"
+    },
+    {
+        "name": "duplicate_schedule_prevention",
+        "input": "Start another isotretinoin schedule for Susan Underwood",
+        "expected_contains": [],
+        "expected_contains_any": ["already", "exists", "active", "existing", "duplicate"],
+        "expected_not_contains": [],
+        "min_length": 20,
+        "category": "med_schedule"
+    },
+    {
+        "name": "biologic_schedule",
+        "input": "Set up a Humira schedule for Phil Belford",
+        "expected_contains": [],
+        "expected_contains_any": ["humira", "adalimumab", "biologic", "tb", "schedule", "injection"],
+        "expected_not_contains": [],
+        "min_length": 50,
+        "category": "med_schedule"
+    }
+]

@@ -20,3 +20,6 @@ ignore = ["E501"]  # line length handled by formatter
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests that require agent running (deselect with -m 'not integration')",
+]
