@@ -174,12 +174,54 @@ class ChatWidgetController
                 overflow: hidden;
             }
             .ctz-chat-panel.open { display: flex; }
+            .ctz-chat-panel.ctz-fullscreen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                max-width: none;
+                bottom: auto;
+                right: auto;
+                border-radius: 0;
+                z-index: 10001;
+            }
+            .ctz-chat-panel.ctz-tall {
+                height: 90vh;
+                bottom: 10px;
+            }
             .ctz-chat-header {
                 padding: 0.75rem 1rem;
                 background: var(--primary, #0d6efd);
                 color: white;
                 font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
             }
+            .ctz-chat-title { flex: 1; }
+            .ctz-chat-header-btns {
+                display: flex;
+                gap: 0.25rem;
+                flex-shrink: 0;
+            }
+            .ctz-header-btn {
+                background: rgba(255,255,255,.2);
+                border: none;
+                color: white;
+                width: 28px;
+                height: 28px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 1rem;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+            }
+            .ctz-header-btn:hover { background: rgba(255,255,255,.35); }
             .ctz-chat-messages {
                 flex: 1;
                 overflow-y: auto;
@@ -277,7 +319,14 @@ class ChatWidgetController
             <i class="fa fa-comments"></i>
         </button>
         <div class="ctz-chat-panel" id="ctz-chat-panel">
-            <div class="ctz-chat-header"><?php echo xlt('CareTopicz AI Assistant'); ?></div>
+            <div class="ctz-chat-header">
+                <span class="ctz-chat-title">CareTopicz AI</span>
+                <div class="ctz-chat-header-btns">
+                    <button type="button" class="ctz-header-btn" id="ctz-tall-btn" title="<?php echo xla('Tall'); ?>">&#8597;</button>
+                    <button type="button" class="ctz-header-btn" id="ctz-fullscreen-btn" title="<?php echo xla('Full screen'); ?>">&#9894;</button>
+                    <button type="button" class="ctz-header-btn" id="ctz-close-btn" title="<?php echo xla('Close'); ?>">&#215;</button>
+                </div>
+            </div>
             <div class="ctz-chat-messages" id="ctz-chat-messages">
                 <div class="ctz-starter-wrap" id="ctz-starter-wrap">
                     <div class="ctz-starter-label"><?php echo xlt('Try asking:'); ?></div>
@@ -295,13 +344,20 @@ class ChatWidgetController
         </div>
         <script>
         (function() {
+            const STORAGE_MSG = 'ctz_chat_html';
+            const COOKIE_OPEN = 'ctz_widget_open';
+            const COOKIE_MODE = 'ctz_widget_mode';
+
             const fab = document.getElementById('ctz-chat-fab');
             const panel = document.getElementById('ctz-chat-panel');
             const messages = document.getElementById('ctz-chat-messages');
-            const starterWrap = document.getElementById('ctz-starter-wrap');
             const input = document.getElementById('ctz-chat-input');
             const sendBtn = document.getElementById('ctz-chat-send');
+            const tallBtn = document.getElementById('ctz-tall-btn');
+            const fullscreenBtn = document.getElementById('ctz-fullscreen-btn');
+            const closeBtn = document.getElementById('ctz-close-btn');
             const chatUrl = <?php echo json_encode($chatUrl); ?>;
+
             function getCookie(name) {
                 const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
                 return match ? match[2] : null;
@@ -309,8 +365,52 @@ class ChatWidgetController
             function setCookie(name, value, days) {
                 const d = new Date();
                 d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
-                document.cookie = name + '=' + value + ';expires=' + d.toUTCString() + ';path=/';
+                document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/';
             }
+            function saveOpenState() {
+                setCookie(COOKIE_OPEN, panel.classList.contains('open') ? '1' : '0', 7);
+            }
+            function saveMode(mode) {
+                setCookie(COOKIE_MODE, mode, 7);
+            }
+            function applyMode(mode) {
+                panel.classList.remove('ctz-tall', 'ctz-fullscreen');
+                if (mode === 'tall') panel.classList.add('ctz-tall');
+                else if (mode === 'fullscreen') panel.classList.add('ctz-fullscreen');
+            }
+            function saveMessagesToStorage() {
+                try {
+                    sessionStorage.setItem(STORAGE_MSG, messages.innerHTML);
+                } catch (e) {}
+            }
+            function restoreMessagesFromStorage() {
+                try {
+                    const stored = sessionStorage.getItem(STORAGE_MSG);
+                    if (stored) {
+                        messages.innerHTML = stored;
+                        rebindStarterButtons();
+                    }
+                } catch (e) {}
+            }
+            function rebindStarterButtons() {
+                const wrap = document.getElementById('ctz-starter-wrap');
+                if (wrap) {
+                    wrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var msg = btn.getAttribute('data-msg');
+                            if (msg) { input.value = msg; input.focus(); if (wrap) wrap.classList.add('hidden'); }
+                        });
+                    });
+                }
+                document.querySelectorAll('.ctz-chat-tools-toggle').forEach(function(toggle) {
+                    toggle.addEventListener('click', function() {
+                        toggle.classList.toggle('open');
+                        var list = toggle.nextElementSibling;
+                        if (list) list.classList.toggle('open');
+                    });
+                });
+            }
+
             let sessionId = getCookie('ctz_session_id');
             if (!sessionId) {
                 sessionId = "sess_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
@@ -322,9 +422,31 @@ class ChatWidgetController
             const retryLabel = <?php echo json_encode(xlt('Retry')); ?>;
             var lastSentMessage = null;
 
+            restoreMessagesFromStorage();
+            var initMode = getCookie(COOKIE_MODE) || 'default';
+            applyMode(initMode);
+            if (getCookie(COOKIE_OPEN) === '1') {
+                panel.classList.add('open');
+            }
+
             fab?.addEventListener('click', function() {
                 panel.classList.toggle('open');
+                saveOpenState();
                 if (panel.classList.contains('open')) input.focus();
+            });
+            closeBtn?.addEventListener('click', function() {
+                panel.classList.remove('open');
+                saveOpenState();
+            });
+            tallBtn?.addEventListener('click', function() {
+                var mode = panel.classList.contains('ctz-tall') ? 'default' : 'tall';
+                applyMode(mode);
+                saveMode(mode);
+            });
+            fullscreenBtn?.addEventListener('click', function() {
+                var mode = panel.classList.contains('ctz-fullscreen') ? 'default' : 'fullscreen';
+                applyMode(mode);
+                saveMode(mode);
             });
 
             function escapeHtml(s) {
@@ -372,6 +494,7 @@ class ChatWidgetController
                 }
                 messages.appendChild(div);
                 messages.scrollTop = messages.scrollHeight;
+                saveMessagesToStorage();
             }
 
             function addErrorWithRetry(lastMsg) {
@@ -395,16 +518,25 @@ class ChatWidgetController
                 div.appendChild(timeEl);
                 messages.appendChild(div);
                 messages.scrollTop = messages.scrollHeight;
+                saveMessagesToStorage();
             }
 
-            if (starterWrap) {
-                starterWrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        var msg = btn.getAttribute('data-msg');
-                        if (msg) { input.value = msg; input.focus(); if (starterWrap) starterWrap.classList.add('hidden'); }
+            (function bindStarterButtons() {
+                var wrap = document.getElementById('ctz-starter-wrap');
+                if (wrap) {
+                    wrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            var msg = btn.getAttribute('data-msg');
+                            if (msg) {
+                                input.value = msg;
+                                input.focus();
+                                var w = document.getElementById('ctz-starter-wrap');
+                                if (w) w.classList.add('hidden');
+                            }
+                        });
                     });
-                });
-            }
+                }
+            })();
             sendBtn?.addEventListener('click', function() { doSend(); });
             input?.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
@@ -418,7 +550,8 @@ class ChatWidgetController
                     addMsg('user', msg);
                     if (input) input.value = '';
                 }
-                if (starterWrap && !starterWrap.classList.contains('hidden')) starterWrap.classList.add('hidden');
+                var wrap = document.getElementById('ctz-starter-wrap');
+                if (wrap && !wrap.classList.contains('hidden')) wrap.classList.add('hidden');
                 sendBtn.disabled = true;
 
                 var thinkingEl = document.createElement('div');

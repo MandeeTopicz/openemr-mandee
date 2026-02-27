@@ -208,21 +208,26 @@ switch ($action) {
             $ins->execute([$patientId, $protocol['id'], $patientCategory, $createdBy, $startDate]);
             $scheduleId = $pdo->lastInsertId();
 
-            $steps = json_decode($protocol['steps'], true);
+            $steps = json_decode($protocol['steps'], true) ?: [];
+            $stepNum = 1;
             if ($steps) {
                 $milestoneIns = $pdo->prepare("
                     INSERT INTO schedule_milestones (schedule_id, step_number, step_name, step_type, description, due_date, window_start, window_end)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ");
                 $prevDate = $startDate;
-                foreach ($steps as $i => $step) {
+                foreach ($steps as $step) {
+                    $stepName = $step['name'] ?? '';
+                    if (stripos($stepName, 'ipledge') !== false) {
+                        continue;
+                    }
                     $daysFromPrev = $step['days_from_prev'] ?? $step['days_from_start'] ?? 0;
                     $windowDays = $step['window_days'] ?? 7;
                     $due = date('Y-m-d', strtotime("+{$daysFromPrev} days", strtotime($prevDate)));
                     $windowEnd = date('Y-m-d', strtotime("+{$windowDays} days", strtotime($due)));
                     $milestoneIns->execute([
                         $scheduleId,
-                        $i + 1,
+                        $stepNum++,
                         $step['name'],
                         $step['type'],
                         $step['description'] ?? null,
@@ -239,7 +244,6 @@ switch ($action) {
             $durationMonths = $durationMonthsOverride ?? ($monthlyCycle['typical_duration_months'] ?? $defaultDuration);
             if ($durationMonths > 0 && !empty($monthlyCycle['steps'])) {
                 $cycleSteps = $monthlyCycle['steps'];
-                $stepNum = count($steps) + 1;
                 $firstPrescDate = $startDate;
                 foreach ($steps as $st) {
                     if (($st['name'] ?? '') === 'first_prescription') {
@@ -250,6 +254,9 @@ switch ($action) {
                 for ($m = 1; $m <= $durationMonths; $m++) {
                     $monthStart = date('Y-m-d', strtotime("+{$m} months", strtotime($firstPrescDate)));
                     foreach ($cycleSteps as $cs) {
+                        if (stripos($cs['name'] ?? '', 'ipledge') !== false) {
+                            continue;
+                        }
                         $due = $monthStart;
                         $windowEnd = date('Y-m-d', strtotime('+7 days', strtotime($due)));
                         $mIns = $pdo->prepare("
@@ -457,6 +464,9 @@ switch ($action) {
             $monthIdx = $startMonth + $i - 1;
             $monthStart = date('Y-m-d', strtotime("+{$i} months", $baseTs));
             foreach ($cycleSteps as $cs) {
+                if (stripos($cs['name'] ?? '', 'ipledge') !== false) {
+                    continue;
+                }
                 $due = $monthStart;
                 $windowEnd = date('Y-m-d', strtotime('+7 days', strtotime($due)));
                 $mIns = $pdo->prepare("INSERT INTO schedule_milestones (schedule_id, step_number, step_name, step_type, description, due_date, window_start, window_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
