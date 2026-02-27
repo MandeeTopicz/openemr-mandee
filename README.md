@@ -29,7 +29,7 @@ This fork includes **CareTopicz**, an AI assistant that runs inside OpenEMR: nat
 - **Deployed demo:** [http://34.139.68.240:8300](http://34.139.68.240:8300) — log in and open the chat widget on the patient dashboard. If the chat returns 502, see [DEPLOYMENT.md](DEPLOYMENT.md) (Option C: GCP) and run `./scripts/check-caretopicz-deployment.sh`.
 - **Setup (clone and run locally):** See [DEPLOYMENT.md](DEPLOYMENT.md). Quick: `cd docker/development-easy && docker compose up -d`. Set `agent-service/.env` with `ANTHROPIC_API_KEY`. Enable the module in OpenEMR (Admin → Modules → CareTopicz AI Agent).
 - **Deliverables:**
-  - [Demo video](https://example.com) — _add your 3–5 min video link_
+  - Demo video — _to be added after recording_
   - [AI Cost Analysis](AI_COST_ANALYSIS.md) — dev spend, per-query cost, scaling projections
   - [Eval Results](EVAL_RESULTS.md) — 61-case suite results and pass rate
   - [Eval dataset](agent-service/evals/datasets/) — CC BY 4.0; [README](agent-service/evals/datasets/README.md) for format and usage
