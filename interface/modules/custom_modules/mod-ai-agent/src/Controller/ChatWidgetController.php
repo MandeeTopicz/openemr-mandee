@@ -549,7 +549,21 @@ class ChatWidgetController
                     }
                 }
             }
+            function rebindToolToggles() {
+                document.querySelectorAll('.ctz-chat-tools-toggle').forEach(function(toggle) {
+                    var list = toggle.nextElementSibling;
+                    if (list && list.classList.contains('ctz-chat-tools-list')) {
+                        toggle.onclick = function(e) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            toggle.classList.toggle('open');
+                            list.classList.toggle('open');
+                        };
+                    }
+                });
+            }
             function rebindStarterButtons() {
+                rebindToolToggles();
                 var wrap = document.getElementById('ctz-starter-wrap');
                 if (wrap) {
                     wrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
