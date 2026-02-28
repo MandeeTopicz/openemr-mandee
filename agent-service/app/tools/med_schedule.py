@@ -129,7 +129,8 @@ def _format_schedule_status(data: dict[str, Any], patient_id: int | None = None)
                 due = m.get("due_date", "")
                 wend = m.get("window_end", "")
                 status = m.get("status", "pending")
-                lines.append(f"  - {m.get('step_name', '')}: due {due} (window ends {wend}) [{status}]")
+                mid = m.get('id', '')
+            lines.append(f"  - [milestone_id={mid}] {m.get('step_name', '')}: due {due} (window ends {wend}) [{status}]")
         else:
             lines.append("\nAll milestones completed or no milestones.")
         if data.get("warnings"):
