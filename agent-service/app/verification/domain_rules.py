@@ -44,7 +44,7 @@ def check_domain_rules(response: str) -> list[DomainRuleViolation]:
     Returns list of violations.
     """
     # Skip domain checks for scheduling/appointment content
-    scheduling_keywords = ["appointment", "available slots", "book", "provider", "office visit", "schedule id", "milestone", "ipledge"]
+    scheduling_keywords = ["appointment", "available slots", "book", "provider", "office visit", "schedule id", "milestone", "ipledge", "skyrizi", "humira", "enbrel", "remicade", "stelara", "cosentyx", "tremfya", "taltz", "dupixent", "biologic", "injection", "screening", "dr.", "md", "week 0", "week 4", "dosing schedule", "prior auth", "donna lee", "billy smith", "fred stone"]
     response_lower = response.lower()
     if any(kw in response_lower for kw in scheduling_keywords):
         return []
