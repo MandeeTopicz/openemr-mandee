@@ -1,0 +1,197 @@
+/**
+ * CareTopicz theme overlay - soft teal/blue to match chat widget.
+ * Loaded after main OpenEMR styles; use !important only where needed.
+ */
+body,
+.navbar,
+.sidebar,
+.card,
+.panel,
+.form-control,
+.btn,
+.table {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Top navigation bar */
+.navbar,
+.navbar-custom,
+.fixed-top.navbar {
+    background: linear-gradient(135deg, #4ECDC4, #2B86C5) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-bottom: none !important;
+}
+.navbar-nav > li > a,
+.navbar-nav > .nav-item > a,
+.navbar-brand,
+.nav > li > a {
+    color: #fff !important;
+}
+.navbar-nav > li > a:hover,
+.navbar-nav > .nav-item > a:hover,
+.nav > li > a:hover {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+.nav > .active > a,
+.navbar-nav > .open > a {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+}
+.dropdown-menu {
+    background: #fff !important;
+    border: 1px solid #E8EEF4;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus {
+    background: #F0FFFE !important;
+    color: #2B86C5 !important;
+}
+
+/* Sidebar / menu */
+.sidebar,
+#oe-nav-ul,
+.appMenu_small {
+    background: #F8FAFE !important;
+    color: #2D3748;
+}
+.sidebar a,
+#oe-nav-ul a,
+.menuLabel {
+    color: #2D3748 !important;
+}
+.sidebar a:hover,
+#oe-nav-ul a:hover,
+#oe-nav-ul.tabNav li a:hover {
+    background: #EDF2F7 !important;
+    color: #2D3748 !important;
+}
+.menu_selected,
+#oe-nav-ul.tabNav li.current a,
+.sidebar .active {
+    border-left: 3px solid #4ECDC4 !important;
+    background: #F0FFFE !important;
+    color: #2B86C5 !important;
+}
+
+/* Tabs */
+#tabs_div .tabSpan,
+.tabSpan.tabNotchosen {
+    color: #64748B !important;
+    border-color: #E2E8F0 !important;
+}
+#tabs_div .tabSpan.tabchosen,
+.tabSpan.tabchosen,
+.tabs li.tabs-selected a.tabs-inner {
+    border-bottom: 3px solid #4ECDC4 !important;
+    color: #2B86C5 !important;
+}
+.tabSpan:hover:not(.tabchosen) {
+    color: #2B86C5 !important;
+}
+
+/* Primary buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #4ECDC4, #3BAFA7) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 6px rgba(78, 205, 196, 0.3);
+    transition: all 0.2s ease;
+}
+.btn-primary:hover {
+    background: #3BAFA7 !important;
+    box-shadow: 0 2px 8px rgba(78, 205, 196, 0.4);
+}
+
+/* Tables */
+.table,
+table.dataTable {
+    border: 1px solid #E8EEF4;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.table thead,
+table.dataTable thead,
+.table_bg thead {
+    background: #EBF8FF !important;
+    color: #2B86C5 !important;
+    font-weight: 600 !important;
+}
+.table tbody tr:nth-of-type(odd),
+.table-striped > tbody > tr:nth-of-type(odd) {
+    background: #fff;
+}
+.table tbody tr:nth-of-type(even),
+.table-striped > tbody > tr:nth-of-type(even) {
+    background: #F8FAFE;
+}
+.table td,
+.table th {
+    border-color: #E8EEF4 !important;
+}
+
+/* Cards / panels */
+.card,
+.panel,
+.panel-default,
+.oe-panel {
+    background: #fff !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid #E8EEF4 !important;
+}
+.card-header,
+.panel-heading {
+    border-color: #E8EEF4 !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+/* Form inputs */
+.form-control,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+select.form-control,
+textarea.form-control {
+    border-radius: 8px !important;
+    border: 1px solid #E2E8F0 !important;
+    padding: 8px 12px !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.form-control:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.3) !important;
+    border-color: #4ECDC4 !important;
+}
+
+/* Links */
+a {
+    color: #2B86C5;
+    transition: color 0.2s ease;
+}
+a:hover {
+    color: #4ECDC4;
+}
+
+/* Calendar */
+.calendar .fc-event,
+.openemr_postcalendar_events .event {
+    border-left: 3px solid #4ECDC4 !important;
+}
+.fc-today,
+.calendar .today {
+    background: #F0FFFE !important;
+}
+
+/* Utilities / misc */
+#menu_icon,
+#logout_icon,
+#user_icon {
+    color: rgba(255, 255, 255, 0.9) !important;
+}

@@ -101,6 +101,9 @@ class Bootstrap
             return;
         }
         try {
+            $webRoot = OEGlobalsBag::getInstance()->get('webroot') ?? $GLOBALS['webroot'] ?? '';
+            $themeUrl = $webRoot . self::MODULE_INSTALLATION_PATH . '/public/caretopicz-theme.css';
+            echo '<link rel="stylesheet" href="' . htmlspecialchars($themeUrl) . '">';
             $controller = new Controller\ChatWidgetController();
             $html = $controller->renderFloatingButton();
             echo $html;
