@@ -91,8 +91,12 @@ body,
     color: #2B86C5 !important;
 }
 
-/* Primary buttons */
-.btn-primary {
+/* Primary buttons - replace Bootstrap blue with teal */
+.btn-primary,
+.btn-add,
+.btn-search,
+input[type="submit"],
+button.btn-primary {
     background: linear-gradient(135deg, #4ECDC4, #3BAFA7) !important;
     color: #fff !important;
     border: none !important;
@@ -100,9 +104,35 @@ body,
     box-shadow: 0 2px 6px rgba(78, 205, 196, 0.3);
     transition: all 0.2s ease;
 }
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-add:hover,
+.btn-search:hover,
+input[type="submit"]:hover {
     background: #3BAFA7 !important;
     box-shadow: 0 2px 8px rgba(78, 205, 196, 0.4);
+}
+.btn-primary:focus,
+.btn-primary:active {
+    box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.3) !important;
+}
+.btn-secondary,
+.btn-default {
+    background: #F0F4F8 !important;
+    color: #2D3748 !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+}
+.btn-secondary:hover,
+.btn-default:hover {
+    background: #E8EEF4 !important;
+}
+.btn-danger {
+    background: #E53E3E !important;
+    border-radius: 8px !important;
+}
+.btn-success {
+    background: #38B2AC !important;
+    border-radius: 8px !important;
 }
 
 /* Tables */
@@ -154,10 +184,13 @@ input[type="text"],
 input[type="password"],
 input[type="email"],
 input[type="number"],
+input[type="date"],
+select,
 select.form-control,
+textarea,
 textarea.form-control {
-    border-radius: 8px !important;
     border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
     padding: 8px 12px !important;
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -170,23 +203,90 @@ textarea:focus {
     border-color: #4ECDC4 !important;
 }
 
-/* Links */
-a {
+/* Alert / notification boxes */
+.alert-info {
+    background: #EBF8FF !important;
+    border: 1px solid #4ECDC4 !important;
+    color: #2B86C5 !important;
+}
+.alert-success {
+    background: #F0FFF4 !important;
+    border: 1px solid #38B2AC !important;
+}
+.alert-warning {
+    border-color: #E2E8F0 !important;
+}
+
+/* Tab active indicator */
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link,
+#tabs_div .tabSpan.tabchosen,
+.tabs li.tabs-selected a.tabs-inner {
+    border-bottom: 3px solid #4ECDC4 !important;
+}
+
+/* Scrollbars (webkit) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #F8FAFE;
+}
+::-webkit-scrollbar-thumb {
+    background: #CBD5E0;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #A0AEC0;
+}
+
+/* Links and accents */
+a,
+.nav-link {
     color: #2B86C5;
     transition: color 0.2s ease;
 }
-a:hover {
+a:hover,
+.nav-link:hover {
     color: #4ECDC4;
+}
+.badge-primary,
+.label-primary {
+    background: #4ECDC4 !important;
 }
 
 /* Calendar */
-.calendar .fc-event,
-.openemr_postcalendar_events .event {
-    border-left: 3px solid #4ECDC4 !important;
+.fc-time-grid-slot,
+.fc-day-grid-event,
+.fc-time-slot {
+    border-bottom: 1px solid #E8EEF4;
+}
+.fc-time-grid .fc-bg,
+.fc-scroller,
+.fc-day-grid {
+    border-color: #E8EEF4;
+}
+.fc-axis,
+.fc-time-grid .fc-axis {
+    color: #64748B;
+    font-size: 12px;
 }
 .fc-today,
-.calendar .today {
+.fc-today .fc-day-number,
+.calendar .today,
+.fc-state-highlight {
     background: #F0FFFE !important;
+}
+.fc-event,
+.calendar .fc-event,
+.fc-day-grid-event,
+.fc-time-grid-event,
+.openemr_postcalendar_events .event {
+    border-left: 3px solid #4ECDC4 !important;
+    background: #EBF8FF !important;
+    border-radius: 4px !important;
+    padding: 2px 6px !important;
 }
 
 /* Utilities / misc */
