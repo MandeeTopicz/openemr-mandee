@@ -179,4 +179,60 @@ if ($action === 'book_appointment') {
     exit;
 }
 
+if ($action === 'list_appointments') {
+    $patientId = $_GET['patient_id'] ?? null;
+    $providerId = $_GET['provider_id'] ?? null;
+    $date = $_GET['date'] ?? null;
+
+    $where = ["pc_eventDate >= CURDATE()", "pc_eventstatus = 1"];
+    $params = [];
+
+    if ($patientId) {
+        $where[] = "e.pc_pid = ?";
+        $params[] = $patientId;
+    }
+    if ($providerId) {
+        $where[] = "e.pc_aid = ?";
+        $params[] = $providerId;
+    }
+    if ($date) {
+        $where[] = "e.pc_eventDate = ?";
+        $params[] = $date;
+    }
+
+    $sql = "SELECT e.pc_eid, e.pc_pid, e.pc_aid, e.pc_title, e.pc_eventDate,
+                   e.pc_startTime, e.pc_endTime, e.pc_apptstatus,
+                   u.fname AS provider_fname, u.lname AS provider_lname,
+                   p.fname AS patient_fname, p.lname AS patient_lname
+            FROM openemr_postcalendar_events e
+            LEFT JOIN users u ON e.pc_aid = u.id
+            LEFT JOIN patient_data p ON e.pc_pid = p.pid
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY e.pc_eventDate, e.pc_startTime
+            LIMIT 50";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $appointments = [];
+    foreach ($rows as $r) {
+        $appointments[] = [
+            'id' => (int)$r['pc_eid'],
+            'patient_id' => $r['pc_pid'],
+            'patient_name' => trim($r['patient_fname'] . ' ' . $r['patient_lname']),
+            'provider_id' => $r['pc_aid'],
+            'provider_name' => trim($r['provider_fname'] . ' ' . $r['provider_lname']),
+            'title' => $r['pc_title'],
+            'date' => $r['pc_eventDate'],
+            'start_time' => $r['pc_startTime'],
+            'end_time' => $r['pc_endTime'],
+            'status' => $r['pc_apptstatus'],
+        ];
+    }
+
+    echo json_encode(['success' => true, 'appointments' => $appointments, 'count' => count($appointments)]);
+    exit;
+}
+
 echo json_encode(['success' => false, 'error' => 'Unknown action']);
