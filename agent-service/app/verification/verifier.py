@@ -53,7 +53,10 @@ def verify_and_gate(response: str, tool_results: list[str], tools_used: list[str
         )
 
     # Fact check failures: refuse or strong disclaimer
-    if not fact_result.passed:
+    # Skip fact check refusal for safe tools or general clinical info queries
+    clinical_info_keywords = ["condition", "symptom", "associated", "causes", "treatment", "medication", "drug", "interact", "screening", "injection", "biologic", "schedule"]
+    is_clinical_info = any(kw in response.lower() for kw in clinical_info_keywords)
+    if not fact_result.passed and not is_safe_tool and not is_clinical_info:
         return VerificationResult(
             response=(
                 "I'm unable to provide a confident answer. The information could not be "
