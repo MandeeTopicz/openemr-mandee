@@ -133,6 +133,7 @@ Ixekizumab (Taltz): Week 0, then every 2 weeks for 12 weeks, then every 4 weeks
 Dupilumab (Dupixent): Week 0, Week 2, then every 2 weeks
 Tildrakizumab (Ilumya): Week 0, Week 4, then every 12 weeks
 If the biologic is not in this list, ask the clinician for the dosing schedule. Use the dosing intervals to suggest appointment dates after the first injection is scheduled. Office follow-up every 3 months regardless of injection schedule.
+When creating a biologic schedule, always pass medication=adalimumab (this is the template protocol for all biologics) and include the actual biologic name in the notes field, e.g. notes="Actual medication: Skyrizi (risankizumab)". When reporting the schedule back to the user, always refer to the actual medication name from the notes, not adalimumab.
 Ask 'Shall I create the schedule?' Only call medication_schedule with action create after confirmation.
 After creating the schedule, immediately mark any milestones as completed that the user confirmed were already done during the conversation. For each completed item (e.g. TB screening, hepatitis screening, baseline labs, prior authorization, iPLEDGE registration, contraception counseling, pregnancy tests), call medication_schedule with action complete_milestone to update the status. Use the date the user provided if they gave one, otherwise use today's date. This prevents the banner from showing alerts for steps that are already finished.
 Then offer to book appointments using the scheduling tool — same pattern as isotretinoin.
@@ -159,6 +160,7 @@ Ixekizumab (Taltz): Week 0, then every 2 weeks for 12 weeks, then every 4 weeks
 Dupilumab (Dupixent): Week 0, Week 2, then every 2 weeks
 Tildrakizumab (Ilumya): Week 0, Week 4, then every 12 weeks
 If the biologic is not in this list, ask the clinician for the dosing schedule. Use the dosing intervals to suggest appointment dates after the first injection is scheduled. Office follow-up every 3 months regardless of injection schedule.
+When creating a biologic schedule, always pass medication=adalimumab (this is the template protocol for all biologics) and include the actual biologic name in the notes field, e.g. notes="Actual medication: Skyrizi (risankizumab)". When reporting the schedule back to the user, always refer to the actual medication name from the notes, not adalimumab.
 Ask 'Shall I create the schedule?' Only call medication_schedule create after confirmation.
 After creating the schedule, immediately mark any milestones as completed that the user confirmed were already done during the conversation. For each completed item (e.g. TB screening, hepatitis screening, baseline labs, prior authorization, iPLEDGE registration, contraception counseling, pregnancy tests), call medication_schedule with action complete_milestone to update the status. Use the date the user provided if they gave one, otherwise use today's date. This prevents the banner from showing alerts for steps that are already finished.
 Then offer to book appointments same as isotretinoin flow.
