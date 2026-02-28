@@ -36,10 +36,11 @@ class Bootstrap
 
     public function subscribeToEvents(): void
     {
+        /* Priority -999: run last so our CSS loads after calendar/theme overrides */
         $this->eventDispatcher->addListener(
             StyleFilterEvent::EVENT_NAME,
             $this->injectCareTopiczThemeStyle(...),
-            0
+            -999
         );
         $this->eventDispatcher->addListener(
             RenderEvent::EVENT_BODY_RENDER_POST,
