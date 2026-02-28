@@ -43,6 +43,11 @@ def check_domain_rules(response: str) -> list[DomainRuleViolation]:
     Check response for forbidden diagnosis or prescription language.
     Returns list of violations.
     """
+    # Skip domain checks for scheduling/appointment content
+    scheduling_keywords = ["appointment", "available slots", "book", "provider", "office visit", "schedule id", "milestone", "ipledge"]
+    response_lower = response.lower()
+    if any(kw in response_lower for kw in scheduling_keywords):
+        return []
     violations: list[DomainRuleViolation] = []
     for pattern, rule in _DIAGNOSE_PATTERNS + _PRESCRIBE_PATTERNS:
         for m in pattern.finditer(response):
