@@ -234,6 +234,19 @@ class ChatWidgetController
                 gap: 0.25rem;
                 flex-shrink: 0;
             }
+            .ctz-header-btn-new {
+                background: rgba(255,255,255,0.2);
+                border: 1px solid rgba(255,255,255,0.4);
+                color: #fff;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 11px;
+                padding: 2px 8px;
+                opacity: 0.9;
+                transition: all 0.2s ease;
+                margin-right: 4px;
+            }
+            .ctz-header-btn-new:hover { opacity: 1; background: rgba(255,255,255,0.3); }
             .ctz-header-btn {
                 background: transparent;
                 border: none;
@@ -478,6 +491,7 @@ class ChatWidgetController
             const messages = document.getElementById('ctz-chat-messages');
             const input = document.getElementById('ctz-chat-input');
             const sendBtn = document.getElementById('ctz-chat-send');
+            const newChatBtn = document.getElementById('ctz-newchat-btn');
             const tallBtn = document.getElementById('ctz-tall-btn');
             const fullscreenBtn = document.getElementById('ctz-fullscreen-btn');
             const closeBtn = document.getElementById('ctz-close-btn');
@@ -521,12 +535,10 @@ class ChatWidgetController
                 } catch (e) {}
             }
             function handleLoginClear() {
-                var onLogin = (typeof window.location !== 'undefined' && window.location.href && window.location.href.indexOf('login.php') !== -1);
-                if (onLogin) {
-                    setCookie(COOKIE_JUST_LOGGED_IN, '1', 1);
-                    return false;
-                }
-                if (getCookie(COOKIE_JUST_LOGGED_IN)) {
+                var oemrSession = getCookie('OpenEMR') || getCookie('PHPSESSID') || '';
+                var lastSession = getCookie('ctz_last_oemr_session') || '';
+                if (oemrSession && lastSession && oemrSession !== lastSession) {
+                    setCookie('ctz_last_oemr_session', oemrSession, 7);
                     try {
                         var current = sessionStorage.getItem(STORAGE_MSG);
                         if (current && current.indexOf('ctz-chat-msg') !== -1) {
@@ -606,10 +618,13 @@ class ChatWidgetController
             const retryLabel = <?php echo json_encode(xlt('Retry')); ?>;
             var lastSentMessage = null;
 
-            var didLoginClear = handleLoginClear();
-            if (!didLoginClear) {
-                restoreMessagesFromStorage();
+            // Always start with clean chat. User can click "Continue last conversation" to restore.
+            var prevChat = sessionStorage.getItem(STORAGE_MSG);
+            if (prevChat && prevChat.indexOf('ctz-chat-msg') !== -1) {
+                sessionStorage.setItem(STORAGE_BACKUP, prevChat);
             }
+            sessionStorage.removeItem(STORAGE_MSG);
+            showOrHideContinueButton();
             showOrHideContinueButton();
             var initMode = getCookie(COOKIE_MODE) || 'default';
             applyMode(initMode);
