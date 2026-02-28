@@ -139,25 +139,42 @@ class ChatWidgetController
         ob_start();
         ?>
         <style>
+            .ctz-chat-fab,
+            .ctz-chat-panel,
+            .ctz-chat-header,
+            .ctz-chat-messages,
+            .ctz-chat-msg,
+            .ctz-chat-input-area,
+            .ctz-header-btn,
+            .ctz-starter-btn,
+            .ctz-continue-btn,
+            .ctz-chat-tools-toggle,
+            .ctz-retry-btn {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
             .ctz-chat-fab {
                 position: fixed;
                 bottom: 1.5rem;
                 right: 1.5rem;
-                width: 56px;
-                height: 56px;
+                width: 60px;
+                height: 60px;
                 border-radius: 50%;
-                background: var(--primary, #0d6efd);
+                background: linear-gradient(135deg, #4ECDC4 0%, #2B86C5 100%);
                 color: white;
                 border: none;
-                box-shadow: 0 4px 12px rgba(0,0,0,.15);
+                box-shadow: 0 4px 15px rgba(78, 205, 196, 0.4);
                 cursor: pointer;
                 z-index: 9998;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-size: 1.5rem;
+                transition: all 0.3s ease;
             }
-            .ctz-chat-fab:hover { opacity: 0.9; }
+            .ctz-chat-fab:hover {
+                transform: scale(1.1);
+                box-shadow: 0 6px 20px rgba(78, 205, 196, 0.5);
+            }
             .ctz-chat-panel {
                 display: none;
                 position: fixed;
@@ -166,14 +183,21 @@ class ChatWidgetController
                 width: 380px;
                 max-width: calc(100vw - 2rem);
                 height: 480px;
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 8px 24px rgba(0,0,0,.2);
+                background: #F8FAFE;
+                border-radius: 20px 20px 0 0;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
                 z-index: 9999;
                 flex-direction: column;
                 overflow: hidden;
+                opacity: 0;
+                transform: scale(0.95) translateY(8px);
+                transition: opacity 0.25s ease, transform 0.25s ease;
             }
-            .ctz-chat-panel.open { display: flex; }
+            .ctz-chat-panel.open {
+                display: flex;
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
             .ctz-chat-panel.ctz-fullscreen {
                 position: fixed;
                 top: 0;
@@ -189,17 +213,21 @@ class ChatWidgetController
             .ctz-chat-panel.ctz-tall {
                 height: 90vh;
                 bottom: 10px;
+                border-radius: 20px 20px 0 0;
             }
             .ctz-chat-header {
-                padding: 0.75rem 1rem;
-                background: var(--primary, #0d6efd);
+                padding: 16px 20px;
+                background: linear-gradient(135deg, #4ECDC4 0%, #2B86C5 100%);
                 color: white;
                 font-weight: 600;
+                font-size: 16px;
+                border-radius: 20px 20px 0 0;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 gap: 0.5rem;
             }
+            .ctz-chat-panel.ctz-fullscreen .ctz-chat-header { border-radius: 0; }
             .ctz-chat-title { flex: 1; }
             .ctz-chat-header-btns {
                 display: flex;
@@ -207,12 +235,12 @@ class ChatWidgetController
                 flex-shrink: 0;
             }
             .ctz-header-btn {
-                background: rgba(255,255,255,.2);
+                background: transparent;
                 border: none;
-                color: white;
+                color: rgba(255, 255, 255, 0.7);
                 width: 28px;
                 height: 28px;
-                border-radius: 4px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-size: 1rem;
                 line-height: 1;
@@ -220,55 +248,108 @@ class ChatWidgetController
                 align-items: center;
                 justify-content: center;
                 padding: 0;
+                transition: color 0.2s ease;
             }
-            .ctz-header-btn:hover { background: rgba(255,255,255,.35); }
+            .ctz-header-btn:hover { color: rgba(255, 255, 255, 1); }
             .ctz-chat-messages {
                 flex: 1;
                 overflow-y: auto;
-                padding: 1rem;
+                padding: 16px;
                 font-size: 0.9rem;
+                background: #F8FAFE;
+                scroll-behavior: smooth;
             }
+            .ctz-chat-messages::-webkit-scrollbar { width: 6px; }
+            .ctz-chat-messages::-webkit-scrollbar-track { background: transparent; }
+            .ctz-chat-messages::-webkit-scrollbar-thumb {
+                background: #CBD5E0;
+                border-radius: 3px;
+            }
+            .ctz-chat-messages::-webkit-scrollbar-thumb:hover { background: #A0AEC0; }
             .ctz-chat-msg { margin-bottom: 0.75rem; }
-            .ctz-chat-msg.user { text-align: right; color: #333; }
+            .ctz-chat-msg.user {
+                text-align: right;
+            }
+            .ctz-chat-msg.user .bubble {
+                display: inline-block;
+                max-width: 80%;
+                padding: 12px 16px;
+                background: linear-gradient(135deg, #4ECDC4 0%, #3BAFA7 100%);
+                color: white;
+                border-radius: 18px 18px 4px 18px;
+                text-align: left;
+                box-shadow: 0 2px 8px rgba(78, 205, 196, 0.2);
+                transition: box-shadow 0.2s ease;
+            }
             .ctz-chat-msg.assistant { text-align: left; }
             .ctz-chat-msg.assistant .bubble {
                 display: inline-block;
-                max-width: 90%;
-                padding: 0.5rem 0.75rem;
-                background: #f0f0f0;
-                border-radius: 8px;
+                max-width: 85%;
+                padding: 12px 16px;
+                background: white;
+                color: #2D3748;
+                border-radius: 18px 18px 18px 4px;
                 text-align: left;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+                border-left: 3px solid #4ECDC4;
+                transition: box-shadow 0.2s ease;
             }
             .ctz-chat-input-area {
-                padding: 0.75rem;
-                border-top: 1px solid #dee2e6;
+                background: white;
+                border-top: 1px solid #E8EEF4;
+                padding: 12px 16px;
             }
             .ctz-chat-input-area textarea {
                 width: 100%;
                 min-height: 60px;
-                padding: 0.5rem;
-                border: 1px solid #ced4da;
-                border-radius: 4px;
+                padding: 12px 20px;
+                border: none;
+                border-radius: 24px;
+                background: #F0F4F8;
+                font-size: 14px;
                 resize: none;
+                font-family: inherit;
+                transition: box-shadow 0.2s ease;
             }
-            .ctz-chat-input-area button {
+            .ctz-chat-input-area textarea:focus {
+                outline: none;
+                box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.3);
+            }
+            .ctz-chat-input-area #ctz-chat-send,
+            .ctz-chat-input-area button.btn {
                 margin-top: 0.5rem;
-                padding: 0.4rem 1rem;
+                background: #4ECDC4;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                padding: 0;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            }
+            .ctz-chat-input-area #ctz-chat-send:hover,
+            .ctz-chat-input-area button.btn:hover {
+                background: #3BAFA7;
             }
             .ctz-chat-tools {
                 margin-top: 0.5rem;
                 font-size: 0.8rem;
             }
             .ctz-chat-tools-toggle {
-                background: none;
+                background: #EBF8FF;
+                color: #2B86C5;
                 border: none;
-                color: var(--primary, #0d6efd);
+                border-radius: 8px;
                 cursor: pointer;
-                padding: 0.25rem 0;
+                padding: 4px 10px;
+                font-size: 12px;
                 text-align: left;
                 width: 100%;
+                transition: opacity 0.2s ease;
             }
-            .ctz-chat-tools-toggle:hover { text-decoration: underline; }
+            .ctz-chat-tools-toggle:hover { opacity: 0.9; }
             .ctz-chat-tools-toggle::before { content: '\25B6\00A0'; }
             .ctz-chat-tools-toggle.open::before { content: '\25BC\00A0'; }
             .ctz-chat-tools-list {
@@ -279,15 +360,17 @@ class ChatWidgetController
             }
             .ctz-chat-tools-list.open { display: block; }
             .ctz-chat-tools-list li {
-                border-left: 2px solid #dee2e6;
+                border-left: 2px solid #E2E8F0;
                 margin-bottom: 0.35rem;
                 padding: 0.2rem 0 0.2rem 0.5rem;
+                color: #2D3748;
             }
             .ctz-chat-tools-list .ctz-tool-name { font-weight: 600; }
-            .ctz-chat-msg.ctz-thinking .bubble { color: #666; }
+            .ctz-chat-msg.ctz-thinking .bubble { color: #64748B; }
             .ctz-thinking-dots::after {
                 content: '';
                 animation: ctz-dots 1.2s steps(4, end) infinite;
+                color: #4ECDC4;
             }
             @keyframes ctz-dots {
                 0%, 20% { content: ''; }
@@ -295,25 +378,62 @@ class ChatWidgetController
                 60% { content: '..'; }
                 80%, 100% { content: '...'; }
             }
-            .ctz-chat-msg.ctz-error .bubble { background: #fff3cd; }
-            .ctz-retry-btn { margin-top: 0.5rem; }
+            .ctz-chat-msg.ctz-error .bubble {
+                background: #FFF5F5;
+                color: #C53030;
+                border-left: 3px solid #FC8181;
+                border-radius: 12px;
+                box-shadow: none;
+            }
+            .ctz-retry-btn {
+                margin-top: 0.5rem;
+                background: transparent;
+                border: 1px solid #4ECDC4;
+                color: #4ECDC4;
+                border-radius: 8px;
+                padding: 0.35rem 0.75rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            .ctz-retry-btn:hover {
+                background: #4ECDC4;
+                color: white;
+            }
             .ctz-starter-wrap { padding: 0.5rem 0; }
             .ctz-starter-wrap.hidden { display: none; }
-            .ctz-starter-label { font-size: 0.85rem; color: #666; margin-bottom: 0.5rem; }
+            .ctz-starter-label { font-size: 0.85rem; color: #64748B; margin-bottom: 0.5rem; }
             .ctz-starter-btn {
                 display: block;
                 width: 100%;
                 text-align: left;
-                padding: 0.5rem 0.75rem;
+                padding: 10px 16px;
                 margin-bottom: 0.35rem;
-                background: #f0f0f0;
-                border: 1px solid #dee2e6;
-                border-radius: 6px;
+                background: white;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+                color: #4ECDC4;
+                font-weight: 500;
                 cursor: pointer;
                 font-size: 0.9rem;
+                transition: all 0.2s ease;
             }
-            .ctz-starter-btn:hover { background: #e8e8e8; }
-            .ctz-msg-time { font-size: 0.7rem; color: #999; margin-top: 0.2rem; }
+            .ctz-starter-btn:hover {
+                background: #F0FFFE;
+                border-color: #4ECDC4;
+            }
+            .ctz-continue-btn {
+                border-left: 3px solid #4ECDC4;
+                background: linear-gradient(90deg, rgba(78, 205, 196, 0.08) 0%, white 8px);
+            }
+            .ctz-continue-btn:hover {
+                background: linear-gradient(90deg, rgba(78, 205, 196, 0.12) 0%, #F0FFFE 8px);
+                border-color: #4ECDC4;
+            }
+            .ctz-msg-time {
+                font-size: 11px;
+                color: #94A3B8;
+                margin-top: 4px;
+            }
         </style>
         <button type="button" class="ctz-chat-fab" id="ctz-chat-fab" title="<?php echo xla('CareTopicz AI Assistant'); ?>">
             <i class="fa fa-comments"></i>
@@ -329,6 +449,9 @@ class ChatWidgetController
             </div>
             <div class="ctz-chat-messages" id="ctz-chat-messages">
                 <div class="ctz-starter-wrap" id="ctz-starter-wrap">
+                    <div class="ctz-continue-wrap" id="ctz-continue-wrap" style="display:none; margin-bottom: 0.5rem;">
+                        <button type="button" class="ctz-starter-btn ctz-continue-btn" id="ctz-continue-btn"><?php echo xlt('Continue last conversation'); ?></button>
+                    </div>
                     <div class="ctz-starter-label"><?php echo xlt('Try asking:'); ?></div>
                     <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('Do lisinopril and ibuprofen interact?'); ?>"><?php echo xlt('Do lisinopril and ibuprofen interact?'); ?></button>
                     <button type="button" class="ctz-starter-btn" data-msg="<?php echo attr('What conditions are associated with chest pain and shortness of breath?'); ?>"><?php echo xlt('What conditions are associated with chest pain and shortness of breath?'); ?></button>
@@ -345,8 +468,10 @@ class ChatWidgetController
         <script>
         (function() {
             const STORAGE_MSG = 'ctz_chat_html';
+            const STORAGE_BACKUP = 'ctz_chat_html_backup';
             const COOKIE_OPEN = 'ctz_widget_open';
             const COOKIE_MODE = 'ctz_widget_mode';
+            const COOKIE_JUST_LOGGED_IN = 'ctz_just_logged_in';
 
             const fab = document.getElementById('ctz-chat-fab');
             const panel = document.getElementById('ctz-chat-panel');
@@ -366,6 +491,9 @@ class ChatWidgetController
                 const d = new Date();
                 d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
                 document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/';
+            }
+            function clearCookie(name) {
+                document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/';
             }
             function saveOpenState() {
                 setCookie(COOKIE_OPEN, panel.classList.contains('open') ? '1' : '0', 7);
@@ -392,14 +520,56 @@ class ChatWidgetController
                     }
                 } catch (e) {}
             }
+            function handleLoginClear() {
+                var onLogin = (typeof window.location !== 'undefined' && window.location.href && window.location.href.indexOf('login.php') !== -1);
+                if (onLogin) {
+                    setCookie(COOKIE_JUST_LOGGED_IN, '1', 1);
+                    return false;
+                }
+                if (getCookie(COOKIE_JUST_LOGGED_IN)) {
+                    try {
+                        var current = sessionStorage.getItem(STORAGE_MSG);
+                        if (current && current.indexOf('ctz-chat-msg') !== -1) {
+                            sessionStorage.setItem(STORAGE_BACKUP, current);
+                        }
+                        sessionStorage.removeItem(STORAGE_MSG);
+                    } catch (e) {}
+                    clearCookie(COOKIE_JUST_LOGGED_IN);
+                    return true;
+                }
+                return false;
+            }
+            function showOrHideContinueButton() {
+                var wrap = document.getElementById('ctz-continue-wrap');
+                if (wrap) {
+                    try {
+                        wrap.style.display = sessionStorage.getItem(STORAGE_BACKUP) ? 'block' : 'none';
+                    } catch (e) {
+                        wrap.style.display = 'none';
+                    }
+                }
+            }
             function rebindStarterButtons() {
-                const wrap = document.getElementById('ctz-starter-wrap');
+                var wrap = document.getElementById('ctz-starter-wrap');
                 if (wrap) {
                     wrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
-                        btn.addEventListener('click', function() {
-                            var msg = btn.getAttribute('data-msg');
-                            if (msg) { input.value = msg; input.focus(); if (wrap) wrap.classList.add('hidden'); }
-                        });
+                        if (btn.classList.contains('ctz-continue-btn')) {
+                            btn.addEventListener('click', function() {
+                                try {
+                                    var backup = sessionStorage.getItem(STORAGE_BACKUP);
+                                    if (backup) {
+                                        messages.innerHTML = backup;
+                                        sessionStorage.setItem(STORAGE_MSG, backup);
+                                        rebindStarterButtons();
+                                    }
+                                } catch (e) {}
+                            });
+                        } else {
+                            btn.addEventListener('click', function() {
+                                var msg = btn.getAttribute('data-msg');
+                                if (msg) { input.value = msg; input.focus(); if (wrap) wrap.classList.add('hidden'); }
+                            });
+                        }
                     });
                 }
                 document.querySelectorAll('.ctz-chat-tools-toggle').forEach(function(toggle) {
@@ -422,7 +592,11 @@ class ChatWidgetController
             const retryLabel = <?php echo json_encode(xlt('Retry')); ?>;
             var lastSentMessage = null;
 
-            restoreMessagesFromStorage();
+            var didLoginClear = handleLoginClear();
+            if (!didLoginClear) {
+                restoreMessagesFromStorage();
+            }
+            showOrHideContinueButton();
             var initMode = getCookie(COOKIE_MODE) || 'default';
             applyMode(initMode);
             if (getCookie(COOKIE_OPEN) === '1') {
@@ -522,20 +696,7 @@ class ChatWidgetController
             }
 
             (function bindStarterButtons() {
-                var wrap = document.getElementById('ctz-starter-wrap');
-                if (wrap) {
-                    wrap.querySelectorAll('.ctz-starter-btn').forEach(function(btn) {
-                        btn.addEventListener('click', function() {
-                            var msg = btn.getAttribute('data-msg');
-                            if (msg) {
-                                input.value = msg;
-                                input.focus();
-                                var w = document.getElementById('ctz-starter-wrap');
-                                if (w) w.classList.add('hidden');
-                            }
-                        });
-                    });
-                }
+                rebindStarterButtons();
             })();
             sendBtn?.addEventListener('click', function() { doSend(); });
             input?.addEventListener('keydown', function(e) {
