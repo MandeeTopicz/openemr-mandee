@@ -87,6 +87,17 @@ class ChatWidgetController
                     $screenParts[] = $name . ': Done ' . date('n/j/y', strtotime($scr['due_date']));
                 }
             }
+            // Clean up display names
+            $cleanParts = [];
+            foreach ($screenParts as $sp) {
+                $sp = str_replace('Tb Screening', 'TB Screening', $sp);
+                $sp = str_replace('Hepatitis Screening', 'Hep B/C Screening', $sp);
+                $sp = str_replace('Baseline Labs', 'Baseline Labs', $sp);
+                $sp = str_replace('Prior Authorization', 'Prior Auth', $sp);
+                $cleanParts[] = $sp;
+            }
+            $screenParts = $cleanParts;
+
             // Get next injection milestone
             $injStmt = $pdo->prepare("
                 SELECT step_name, due_date, status
@@ -103,8 +114,15 @@ class ChatWidgetController
             if ($nextInj) {
                 $injDate = date('M j, Y', strtotime($nextInj['due_date']));
                 $daysUntil = (strtotime($nextInj['due_date']) - strtotime($today)) / 86400;
-                $injName = str_replace('_', ' ', $nextInj['step_name']);
-                $injName = ucwords($injName);
+                $injName = $nextInj['step_name'];
+                // Map internal names to friendly names
+                $injNameMap = [
+                    'first_injection' => 'Week 0 Injection',
+                    'biweekly_injection_m1' => 'Week 4 Injection',
+                    'biweekly_injection_m2' => 'Week 16 Injection',
+                    'biweekly_injection_m3' => 'Week 28 Injection',
+                ];
+                $injName = $injNameMap[$injName] ?? ucwords(str_replace('_', ' ', $injName));
                 if ($daysUntil < 0) {
                     $severity = 'red';
                     $line .= ' — ' . $injName . ': OVERDUE (was due ' . $injDate . ')';
