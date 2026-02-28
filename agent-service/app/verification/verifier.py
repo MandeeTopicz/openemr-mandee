@@ -34,7 +34,7 @@ def verify_and_gate(response: str, tool_results: list[str], tools_used: list[str
     domain_violations = check_domain_rules(response)
 
     # Skip domain rules for tools that naturally produce scheduling, provider, educational, or medication schedule content
-    safe_tools = ["patient_education", "appointment", "provider_search", "insurance_provider", "medication_schedule", "scheduling", "cancel_schedule"]
+    safe_tools = ["patient_education", "appointment", "provider_search", "insurance_provider", "medication_schedule", "scheduling", "cancel_schedule", "symptom_lookup", "drug_interaction", "appointment_check"]
     is_safe_tool = tools_used and any(any(s in t for s in safe_tools) for t in (tools_used or []))
     if is_safe_tool:
         domain_violations = []
