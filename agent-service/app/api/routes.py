@@ -5,14 +5,53 @@ Endpoints: /health, /chat, /verify, /tools (latter as placeholders).
 """
 
 import asyncio
+import json
 
+import redis
 from fastapi import APIRouter, HTTPException, Request
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agent.graph import invoke_graph
 from app.api.schemas import ChatResponse, FeedbackRequest, HealthResponse, ToolUsed
 from app.config import settings
 
 router = APIRouter()
+
+_redis = redis.Redis(host="redis", port=6379, db=1, decode_responses=True)
+
+
+def _get_history(session_id: str) -> list:
+    """Get conversation history from Redis."""
+    try:
+        data = _redis.get(f"chat_history:{session_id}")
+        if data:
+            messages = json.loads(data)
+            result = []
+            for m in messages:
+                if m["role"] == "human":
+                    result.append(HumanMessage(content=m["content"]))
+                else:
+                    result.append(AIMessage(content=m["content"]))
+            return result
+    except Exception:
+        pass
+    return []
+
+
+def _save_history(session_id: str, history: list):
+    """Save conversation history to Redis with 7 day TTL."""
+    try:
+        messages = []
+        for m in history:
+            if isinstance(m, HumanMessage):
+                messages.append({"role": "human", "content": m.content})
+            else:
+                messages.append({"role": "ai", "content": m.content})
+        # Keep last 20 messages (10 turns)
+        messages = messages[-20:]
+        _redis.setex(f"chat_history:{session_id}", 7 * 86400, json.dumps(messages))
+    except Exception:
+        pass
 
 _EMPTY_MSG_RESPONSE = "I didn't receive a message. How can I help you?"
 
@@ -38,13 +77,6 @@ async def metrics():
     return get_metrics_report()
 
 
-from collections import defaultdict
-from langchain_core.messages import HumanMessage, AIMessage
-
-# In-memory conversation history keyed by session_id (last 10 messages per session)
-_session_history: dict[str, list] = defaultdict(list)
-_MAX_HISTORY = 10
-
 @router.post("/chat", response_model=ChatResponse)
 async def chat(request: Request):
     """
@@ -60,14 +92,12 @@ async def chat(request: Request):
 
     try:
         session_id = body.get("session_id") or "default"
-        history = list(_session_history.get(session_id, []))
+        history = _get_history(session_id)
         response_text, metrics, tools_used = await asyncio.to_thread(invoke_graph, msg, None, history)
         # Store conversation turn
-        _session_history[session_id].append(HumanMessage(content=msg))
-        _session_history[session_id].append(AIMessage(content=response_text))
-        # Trim to last N messages
-        if len(_session_history[session_id]) > _MAX_HISTORY * 2:
-            _session_history[session_id] = _session_history[session_id][-_MAX_HISTORY * 2:]
+        history.append(HumanMessage(content=msg))
+        history.append(AIMessage(content=response_text))
+        _save_history(session_id, history)
     except ValueError as e:
         if "ANTHROPIC_API_KEY" in str(e):
             raise HTTPException(

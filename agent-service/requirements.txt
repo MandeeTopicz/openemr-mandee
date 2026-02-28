@@ -13,6 +13,9 @@ python-dotenv>=1.0.0
 # Async HTTP
 httpx>=0.28.0
 
+# Redis
+redis>=5.0.0
+
 # LangGraph + Claude
 langgraph>=0.2.0
 langchain-anthropic>=0.2.0
