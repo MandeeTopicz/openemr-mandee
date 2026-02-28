@@ -42,5 +42,10 @@ class Settings(BaseSettings):
     openemr_fhir_token: str | None = None
     openemr_fhir_verify_ssl: bool = False
 
+    # Redis - chat history (default "redis" for Docker, use "localhost" for local dev)
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_db: int = 1
+
 
 settings = Settings()

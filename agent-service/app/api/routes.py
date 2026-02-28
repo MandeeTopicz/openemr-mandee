@@ -6,6 +6,7 @@ Endpoints: /health, /chat, /verify, /tools (latter as placeholders).
 
 import asyncio
 import json
+import logging
 
 import redis
 from fastapi import APIRouter, HTTPException, Request
@@ -15,9 +16,15 @@ from app.agent.graph import invoke_graph
 from app.api.schemas import ChatResponse, FeedbackRequest, HealthResponse, ToolUsed
 from app.config import settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_redis = redis.Redis(host="redis", port=6379, db=1, decode_responses=True)
+_redis = redis.Redis(
+    host=settings.redis_host,
+    port=settings.redis_port,
+    db=settings.redis_db,
+    decode_responses=True,
+)
 
 
 def _get_history(session_id: str) -> list:
@@ -28,13 +35,15 @@ def _get_history(session_id: str) -> list:
             messages = json.loads(data)
             result = []
             for m in messages:
-                if m["role"] == "human":
-                    result.append(HumanMessage(content=m["content"]))
+                if m.get("role") == "human":
+                    result.append(HumanMessage(content=m.get("content", "")))
                 else:
-                    result.append(AIMessage(content=m["content"]))
+                    result.append(AIMessage(content=m.get("content", "")))
             return result
-    except Exception:
-        pass
+    except redis.RedisError as e:
+        logger.warning("Redis get_history failed: %s", e)
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning("Redis history parse error: %s", e)
     return []
 
 
@@ -50,8 +59,8 @@ def _save_history(session_id: str, history: list):
         # Keep last 20 messages (10 turns)
         messages = messages[-20:]
         _redis.setex(f"chat_history:{session_id}", 7 * 86400, json.dumps(messages))
-    except Exception:
-        pass
+    except redis.RedisError as e:
+        logger.warning("Redis save_history failed: %s", e)
 
 _EMPTY_MSG_RESPONSE = "I didn't receive a message. How can I help you?"
 
