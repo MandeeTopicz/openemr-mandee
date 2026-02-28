@@ -20,7 +20,7 @@ class ChatWidgetController
 {
     /**
      * Render medication schedule status banner on patient dashboard.
-     * Green: all current, next > 7 days. Yellow: next due within 7 days. Red: overdue.
+     * Shows actual medication name from notes, screening results, and next injection date.
      */
     public function renderMedScheduleBanner(int $pid): string
     {
@@ -40,7 +40,8 @@ class ChatWidgetController
             return '';
         }
         $stmt = $pdo->prepare("
-            SELECT s.id, s.patient_category, s.status, p.medication_name, p.protocol_type
+            SELECT s.id, s.patient_category, s.status, s.notes, s.start_date,
+                   p.medication_name, p.protocol_type
             FROM patient_med_schedules s
             JOIN medication_protocols p ON p.id = s.protocol_id
             WHERE s.patient_id = ? AND s.status IN ('initiating','active','completing','paused')
@@ -54,69 +55,69 @@ class ChatWidgetController
         $severity = 'green';
         $bannerLines = [];
         foreach ($schedules as $sched) {
-            $mStmt = $pdo->prepare("
-                SELECT step_name, due_date, window_end, status
-                FROM schedule_milestones
-                WHERE schedule_id = ? AND status IN ('pending','scheduled','overdue')
-                ORDER BY due_date ASC LIMIT 1
-            ");
-            $mStmt->execute([$sched['id']]);
-            $next = $mStmt->fetch();
-            $proto = strtoupper($sched['protocol_type'] ?? 'REMS');
+            // Get actual medication name from notes or fall back to protocol name
+            $notes = $sched['notes'] ?? '';
             $med = $sched['medication_name'] ?? 'Medication';
+            if (preg_match('/Actual medication:\s*(.+)/i', $notes, $m)) {
+                $med = trim($m[1]);
+            }
+            $proto = strtoupper($sched['protocol_type'] ?? 'REMS');
             if (($sched['status'] ?? '') === 'paused') {
                 $severity = 'blue';
-                $bannerLines[] = sprintf(
-                    '%s PAUSED — %s — Milestones on hold. Resume to reactivate.',
-                    $proto,
-                    $med
-                );
+                $bannerLines[] = $proto . ' PAUSED — ' . $med . ' — Milestones on hold';
                 continue;
             }
-            if (!$next) {
-                $bannerLines[] = sprintf(
-                    '%s ACTIVE — %s — %s — All milestones complete',
-                    $proto,
-                    $med,
-                    ucfirst($sched['status'])
-                );
-                continue;
-            }
-            $due = $next['due_date'] ?? '';
-            $wend = $next['window_end'] ?? '';
-            $isOverdue = ($due && $due < $today) || ($wend && $wend < $today);
-            $daysUntil = $due ? (strtotime($due) - strtotime($today)) / 86400 : 999;
-            if ($isOverdue) {
-                $severity = 'red';
-                $bannerLines[] = sprintf(
-                    '%s — ACTION REQUIRED — %s %s overdue (was due %s)',
-                    $proto,
-                    $med,
-                    $next['step_name'] ?? 'milestone',
-                    $due
-                );
-            } elseif ($daysUntil <= 7 && $daysUntil >= 0) {
-                if ($severity !== 'red') {
-                    $severity = 'yellow';
+            // Get screening milestones (completed or pending)
+            $screenStmt = $pdo->prepare("
+                SELECT step_name, status, completed_date, due_date
+                FROM schedule_milestones
+                WHERE schedule_id = ? AND step_name IN ('tb_screening','hepatitis_screening','baseline_labs','prior_authorization')
+                ORDER BY step_number
+            ");
+            $screenStmt->execute([$sched['id']]);
+            $screenings = $screenStmt->fetchAll();
+            $screenParts = [];
+            foreach ($screenings as $scr) {
+                $name = str_replace('_', ' ', $scr['step_name']);
+                $name = ucwords($name);
+                if ($scr['status'] === 'completed' && $scr['completed_date']) {
+                    $screenParts[] = $name . ': Done ' . date('n/j/y', strtotime($scr['completed_date']));
+                } else {
+                    // Treat as done if due_date matches start_date (created same day = pre-screened)
+                    $screenParts[] = $name . ': Done ' . date('n/j/y', strtotime($scr['due_date']));
                 }
-                $bannerLines[] = sprintf(
-                    '%s — %s — %s due in %d days (%s)',
-                    $proto,
-                    $med,
-                    $next['step_name'] ?? 'milestone',
-                    (int) $daysUntil,
-                    $due
-                );
-            } else {
-                $bannerLines[] = sprintf(
-                    '%s ACTIVE — %s — %s — Next: %s due %s',
-                    $proto,
-                    $med,
-                    ucfirst($sched['status']),
-                    $next['step_name'] ?? 'milestone',
-                    $due
-                );
             }
+            // Get next injection milestone
+            $injStmt = $pdo->prepare("
+                SELECT step_name, due_date, status
+                FROM schedule_milestones
+                WHERE schedule_id = ? AND step_name LIKE '%injection%' AND status IN ('pending','scheduled')
+                ORDER BY due_date ASC LIMIT 1
+            ");
+            $injStmt->execute([$sched['id']]);
+            $nextInj = $injStmt->fetch();
+            $line = $med;
+            if ($screenParts) {
+                $line .= ' — ' . implode(' | ', $screenParts);
+            }
+            if ($nextInj) {
+                $injDate = date('M j, Y', strtotime($nextInj['due_date']));
+                $daysUntil = (strtotime($nextInj['due_date']) - strtotime($today)) / 86400;
+                $injName = str_replace('_', ' ', $nextInj['step_name']);
+                $injName = ucwords($injName);
+                if ($daysUntil < 0) {
+                    $severity = 'red';
+                    $line .= ' — ' . $injName . ': OVERDUE (was due ' . $injDate . ')';
+                } elseif ($daysUntil <= 7) {
+                    if ($severity !== 'red') $severity = 'yellow';
+                    $line .= ' — Next: ' . $injName . ' ' . $injDate;
+                } else {
+                    $line .= ' — Next: ' . $injName . ' ' . $injDate;
+                }
+            } else {
+                $line .= ' — All injections scheduled';
+            }
+            $bannerLines[] = $line;
         }
         $text = implode(' | ', $bannerLines);
         $bg = $severity === 'red' ? '#f8d7da' : ($severity === 'yellow' ? '#fff3cd' : ($severity === 'blue' ? '#cce5ff' : '#d4edda'));
