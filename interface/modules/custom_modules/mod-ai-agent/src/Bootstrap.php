@@ -14,6 +14,7 @@ namespace OpenEMR\Modules\AIAgent;
 
 use OpenEMR\Common\Logging\SystemLogger;
 use OpenEMR\Core\OEGlobalsBag;
+use OpenEMR\Events\Core\StyleFilterEvent;
 use OpenEMR\Events\Main\Tabs\RenderEvent;
 use OpenEMR\Events\PatientDemographics\RenderEvent as PatientRenderEvent;
 use OpenEMR\Events\UserInterface\PageHeadingRenderEvent;
@@ -36,6 +37,11 @@ class Bootstrap
     public function subscribeToEvents(): void
     {
         $this->eventDispatcher->addListener(
+            StyleFilterEvent::EVENT_NAME,
+            $this->injectCareTopiczThemeStyle(...),
+            0
+        );
+        $this->eventDispatcher->addListener(
             RenderEvent::EVENT_BODY_RENDER_POST,
             $this->renderChatWidgetOnMainTabs(...),
             10
@@ -45,6 +51,19 @@ class Bootstrap
             $this->renderMedScheduleBanner(...),
             10
         );
+    }
+
+    /**
+     * Injects CareTopicz theme CSS into every page that uses Header::setupHeader() or
+     * dispatches StyleFilterEvent (e.g. calendar). Path is filtered by filterSafeLocalModuleFiles.
+     */
+    public function injectCareTopiczThemeStyle(StyleFilterEvent $event): void
+    {
+        $webRoot = OEGlobalsBag::getInstance()->get('webroot') ?? $GLOBALS['web_root'] ?? '';
+        $themeUrl = $webRoot . self::MODULE_INSTALLATION_PATH . '/public/caretopicz-theme.css';
+        $styles = $event->getStyles();
+        $styles[] = $themeUrl;
+        $event->setStyles($styles);
     }
 
     public function renderMedScheduleBanner(PatientRenderEvent $event): void
@@ -101,9 +120,6 @@ class Bootstrap
             return;
         }
         try {
-            $webRoot = OEGlobalsBag::getInstance()->get('webroot') ?? $GLOBALS['webroot'] ?? '';
-            $themeUrl = $webRoot . self::MODULE_INSTALLATION_PATH . '/public/caretopicz-theme.css';
-            echo '<link rel="stylesheet" href="' . htmlspecialchars($themeUrl) . '">';
             $controller = new Controller\ChatWidgetController();
             $html = $controller->renderFloatingButton();
             echo $html;
