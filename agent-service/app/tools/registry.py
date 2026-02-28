@@ -210,7 +210,19 @@ def _format_appointment_result(data: dict) -> str:
         return "No appointments found."
     lines = []
     for a in appointments:
-        lines.append(f"- {a.get('start', '')} to {a.get('end', '')}: {a.get('description', '')} (status: {a.get('status', '')})")
+        date = a.get('date', '')
+        start = a.get('start_time', a.get('start', ''))
+        end = a.get('end_time', a.get('end', ''))
+        title = a.get('title', a.get('description', 'Appointment'))
+        provider = a.get('provider_name', '')
+        patient = a.get('patient_name', '')
+        line = f"- {date} {start}-{end}: {title}"
+        if provider:
+            line += f" with {provider}"
+        if patient:
+            line += f" (patient: {patient})"
+        line += f" (status: {a.get('status', '')})"
+        lines.append(line)
     return "Appointments:\n" + "\n".join(lines)
 
 
