@@ -87,13 +87,16 @@ def verify_and_gate(response: str, tool_results: list[str], tools_used: list[str
     if confidence >= 0.9:
         pass  # Return as-is
     elif confidence >= 0.7:
-        caveat = (
-            "\n\nAlways consult a healthcare provider for clinical decisions."
-        )
+        # Only add disclaimer if response doesn't already contain one
+        if "consult a healthcare provider" not in response.lower() and "consult a healthcare professional" not in response.lower():
+            caveat = (
+                "\n\nAlways consult a healthcare provider for clinical decisions."
+            )
     elif confidence >= 0.5:
-        caveat = (
-            "\n\nThis response has limited verification. Please consult a healthcare professional before making any clinical decisions."
-        )
+        if "consult a healthcare provider" not in response.lower() and "consult a healthcare professional" not in response.lower():
+            caveat = (
+                "\n\nThis response has limited verification. Please consult a healthcare professional before making any clinical decisions."
+            )
     else:
         return VerificationResult(
             response=(
