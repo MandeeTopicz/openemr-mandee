@@ -954,11 +954,6 @@ echo "</div>\n";
 
     $(function () {
         setupDirectTime();
-        // Default to All Users on first load (no explicit provider selection in URL)
-        if (!window.location.search.includes('pc_username') || window.location.search.includes('__PC_ALL__')) {
-            $("#pc_username option:gt(0)").prop("selected", true);
-            ChangeProviders($("#pc_username"));
-        }
         $("#pc_username").change(function() { ChangeProviders(this); });
         $("#pc_facility").change(function() { ChangeProviders(this); });
         //$("#dayview").click(function() { ChangeView(this); });
