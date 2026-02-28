@@ -289,6 +289,45 @@ a:hover,
     padding: 2px 6px !important;
 }
 
+/* PostCalendar: provider name bar - teal/blue gradient */
+.providerheader,
+.providerheader.providerday {
+    background: linear-gradient(135deg, #4ECDC4, #2B86C5) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+}
+
+/* PostCalendar: shadow/divider on apptMarker (floating time slot on hover) */
+.calsearch_body a.apptMarker.event_appointment,
+.calsearch_body .apptMarker.event.event_appointment {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* PostCalendar: divider between static time slot links in #times column */
+.calsearch_body #times .timeslot a {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08) !important;
+    display: block !important;
+}
+
+/* PostCalendar: horizontal grid lines in schedule cells */
+.calsearch_body td.schedule .calendar_day {
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 19px,
+        #CBD5E0 19px,
+        #CBD5E0 20px
+    ) !important;
+}
+
+/* Date nav chevrons (prev/next day, week, month) - teal/blue theme */
+.chevron_color {
+    color: #4ECDC4 !important;
+}
+a:hover .chevron_color {
+    color: #2B86C5 !important;
+}
+
 /* Utilities / misc */
 #menu_icon,
 #logout_icon,
