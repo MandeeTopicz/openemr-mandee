@@ -185,6 +185,7 @@ def medication_schedule(
             start_date=sd,
             created_by=created_by or "agent",
             duration_months=duration_months,
+            notes=notes or "",
         )
         if result.get("success") and result.get("schedule"):
             return result

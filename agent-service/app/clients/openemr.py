@@ -192,6 +192,7 @@ def create_medication_schedule(
     start_date: str,
     created_by: str = "agent",
     duration_months: int | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
     """Create a new medication compliance schedule."""
     url = _module_url("med_schedule.php")
@@ -204,6 +205,8 @@ def create_medication_schedule(
     }
     if duration_months is not None:
         payload["duration_months"] = duration_months
+    if notes:
+        payload["notes"] = notes
     try:
         with httpx.Client(timeout=15.0) as client:
             resp = client.post(url, params={"action": "create_schedule"}, json=payload)

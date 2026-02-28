@@ -177,6 +177,7 @@ switch ($action) {
         $createdBy = $body['created_by'] ?? 'agent';
         $startDate = $body['start_date'] ?? date('Y-m-d');
         $durationMonthsOverride = isset($body['duration_months']) ? (int)$body['duration_months'] : null;
+        $notes = trim($body['notes'] ?? '');
 
         if (!$patientId || !$medication) {
             jsonResp(['success' => false, 'error' => 'patient_id and medication required']);
@@ -202,10 +203,10 @@ switch ($action) {
         $pdo->beginTransaction();
         try {
             $ins = $pdo->prepare("
-                INSERT INTO patient_med_schedules (patient_id, protocol_id, patient_category, status, created_by, start_date)
-                VALUES (?, ?, ?, 'initiating', ?, ?)
+                INSERT INTO patient_med_schedules (patient_id, protocol_id, patient_category, status, created_by, start_date, notes)
+                VALUES (?, ?, ?, 'initiating', ?, ?, ?)
             ");
-            $ins->execute([$patientId, $protocol['id'], $patientCategory, $createdBy, $startDate]);
+            $ins->execute([$patientId, $protocol['id'], $patientCategory, $createdBy, $startDate, $notes ?: null]);
             $scheduleId = $pdo->lastInsertId();
 
             $steps = json_decode($protocol['steps'], true) ?: [];
