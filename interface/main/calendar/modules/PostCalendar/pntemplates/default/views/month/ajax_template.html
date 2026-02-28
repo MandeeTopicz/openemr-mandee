@@ -781,6 +781,11 @@ foreach ($providers as $provider) {
         $("#wrapper").toggleClass("toggled");
     });
 </script>
+[-php-]
+// CareTopicz theme - load last to override calendar styles
+$wr = $GLOBALS['webroot'] ?? $GLOBALS['web_root'] ?? '';
+echo '<link rel="stylesheet" href="' . attr($wr . '/interface/modules/custom_modules/mod-ai-agent/public/caretopicz-theme.css') . '">';
+[-/php-]
 
 </body>
 </html>
