@@ -380,6 +380,31 @@ class ChatWidgetController
             }
             .ctz-chat-tools-list .ctz-tool-name { font-weight: 600; }
             .ctz-chat-msg.ctz-thinking .bubble { color: #64748B; }
+            .ctz-thinking-dots-wrap {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 0;
+            }
+            .ctz-thinking-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #4ECDC4;
+                animation: ctz-bounce 0.6s ease-in-out infinite alternate;
+            }
+            .ctz-thinking-dot:nth-child(2) { animation-delay: 0.15s; }
+            .ctz-thinking-dot:nth-child(3) { animation-delay: 0.3s; }
+            @keyframes ctz-bounce {
+                0% { transform: translateY(0); opacity: 0.4; }
+                100% { transform: translateY(-8px); opacity: 1; }
+            }
+            .ctz-thinking-label {
+                font-size: 11px;
+                color: #94A3B8;
+                font-style: italic;
+                margin-top: 4px;
+            }
             .ctz-thinking-dots::after {
                 content: '';
                 animation: ctz-dots 1.2s steps(4, end) infinite;
@@ -748,16 +773,18 @@ class ChatWidgetController
                 thinkingEl.className = 'ctz-chat-msg assistant ctz-thinking';
                 thinkingEl.id = 'ctz-thinking-placeholder';
                 var thinkingBubble = document.createElement('div');
-                thinkingBubble.className = 'bubble ctz-thinking-dots';
-                thinkingBubble.textContent = 'Thinking';
+                thinkingBubble.className = 'bubble';
+                thinkingBubble.innerHTML = '<div class="ctz-thinking-dots-wrap"><span class="ctz-thinking-dot"></span><span class="ctz-thinking-dot"></span><span class="ctz-thinking-dot"></span></div><div class="ctz-thinking-label">CareTopicz is thinking...</div>';
                 thinkingEl.appendChild(thinkingBubble);
                 messages.appendChild(thinkingEl);
                 messages.scrollTop = messages.scrollHeight;
 
                 var longWaitTimer = setTimeout(function() {
                     if (thinkingBubble && thinkingBubble.parentNode) {
-                        thinkingBubble.textContent = 'Still working — checking multiple sources';
-                        thinkingBubble.classList.remove('ctz-thinking-dots');
+                        var longWaitEl = document.createElement('div');
+                        longWaitEl.className = 'ctz-thinking-label';
+                        longWaitEl.textContent = 'This is taking longer than usual...';
+                        thinkingBubble.appendChild(longWaitEl);
                     }
                 }, 10000);
 
