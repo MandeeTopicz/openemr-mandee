@@ -67,13 +67,56 @@ Protocol rules are stored as structured JSON in the `medication_protocols` table
 
 ## Technical Implementation
 
+### Database Layer
 - **3 new database tables** in OpenEMR: `medication_protocols`, `patient_med_schedules`, `schedule_milestones` (including `paused` status for temporary holds)
-- **PHP CRUD endpoints** for all schedule operations, secured to internal Docker network
-- **Agent tool** (`medication_schedule`) with full lifecycle support:
-  - Create (with optional `duration_months`), status, complete milestones
-  - Extend (add months), complete treatment, discontinue (with reason)
-  - Pause, resume (with date recalculation)
-  - Reschedule milestone, cancel, detect conflicts, dashboard view
-- **Patient dashboard banner** showing protocol status with color-coded urgency (green/yellow/red/blue for paused)
-- **11 eval cases** covering schedule creation, short duration, extend, discontinue, status checks, gender clarification, duplicate prevention, cancellation, and biologic protocols
-- **Verification layer integration** — schedule tool responses exempt from domain rules that would otherwise block medication-related content
+- Schedule notes field stores actual medication name (e.g., "Actual medication: Skyrizi (risankizumab)") while using a shared biologic protocol template
+
+### PHP Endpoints
+- **CRUD endpoints** for all schedule operations (`med_schedule.php`), secured to internal Docker network
+- **Appointment scheduling** (`appointments.php`) — list available slots, book appointments, check existing appointments
+- **PDF proxy** (`pdf_proxy.php`) — proxies PDF downloads from the agent service to the browser
+
+### Agent Tools
+- **`medication_schedule`** — Full lifecycle support: create (with optional `duration_months`), status, complete milestones, extend, complete treatment, discontinue (with reason), pause, resume (with date recalculation), reschedule, cancel, detect conflicts, dashboard view
+- **`scheduling`** — Book appointments with providers, check available time slots, integrated with OpenEMR calendar
+- **`schedule_pdf`** — Generate professional printable PDF of a patient's medication schedule including patient demographics, screening results, appointment dates, dosing reference, clinical notes, and provider signature lines. Built with ReportLab, served via agent HTTP endpoint, proxied through PHP for browser access.
+
+### Conversational Biologic Onboarding Flow
+- Agent walks clinicians through a structured one-question-at-a-time workflow when starting a patient on a biologic
+- Asks: prior biologic history, TB screening (+ date), hepatitis B/C screening (+ date), baseline labs, prior authorization status
+- Supports 10 biologics with correct dosing schedules: Adalimumab (Humira), Etanercept (Enbrel), Infliximab (Remicade), Ustekinumab (Stelara), Secukinumab (Cosentyx), Risankizumab (Skyrizi), Guselkumab (Tremfya), Ixekizumab (Taltz), Dupilumab (Dupixent), Tildrakizumab (Ilumya)
+- After schedule creation, automatically marks confirmed screenings as completed milestones
+- Offers to book injection appointments using correct dosing intervals (e.g., Week 0, Week 4, then every 12 weeks for Skyrizi)
+- Offers to generate a printable PDF schedule at end of workflow
+
+### Patient Dashboard Banner
+- Color-coded urgency: green (on track), yellow (due within 7 days), red (overdue), blue (paused)
+- Shows actual medication name from schedule notes (not generic protocol name)
+- Displays screening completion dates (TB, Hep B/C, Baseline Labs, Prior Auth)
+- Shows next injection appointment with friendly names (e.g., "Week 4 Injection" not "biweekly_injection_m1")
+
+### Chat Memory (Redis)
+- Conversation history persisted in Redis (db 1) with 7-day TTL
+- History survives agent container rebuilds and restarts
+- Session ID stored in browser cookie for 7 days
+- Agent instructed to reference conversation history and never claim lack of memory
+
+### UI / Theming
+- Custom teal theme applied to OpenEMR calendar (provider headers, timeslot dividers, date picker) and dashboard via direct `style_light.css` modification
+- Modern bouncing dots thinking animation (three animated circles with staggered timing)
+- Chat widget with session management: "New Chat" button, "Continue last conversation" option
+- PDF download links rendered as clickable buttons in chat responses
+
+### Verification & Safety
+- Domain rules bypass for biologic/scheduling content prevents false positive blocks
+- Safe tools list includes symptom_lookup, drug_interaction, scheduling, medication_schedule — these skip fact-check gating
+- Duplicate disclaimer prevention: verifier checks if response already contains a disclaimer before appending
+- Clinical info responses (conditions, symptoms, drug interactions) no longer refused by fact checker
+
+### Evals
+- **95 eval cases** across 6 datasets covering: schedule creation, short duration, extend, discontinue, status checks, gender clarification, duplicate prevention, cancellation, biologic protocols, drug interactions, symptom lookup, provider search, insurance queries, multi-tool queries, and domain safety
+
+### Deployment
+- Deployed on Google Cloud Platform (GCP) VM at `http://34.139.68.240:8300`
+- Docker Compose stack: OpenEMR (PHP/Apache/MariaDB), Agent Service (Python/FastAPI), Redis
+- Agent service accessible internally on port 8000, proxied through OpenEMR PHP endpoints
