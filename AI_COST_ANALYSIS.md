@@ -1,80 +1,60 @@
-# CareTopicz AI Cost Analysis
+# AI Cost Analysis
 
-Cost analysis for the CareTopicz agent service: development spend, per-query estimates, scaling projections, and optimization strategies.
+## Model Configuration
+- **Model**: Claude Sonnet 4 (claude-sonnet-4-6)
+- **Provider**: Anthropic API
+- **Pricing**: $3 per 1M input tokens, $15 per 1M output tokens
 
----
+## Per-Request Token Estimates
 
-## 1. Actual Development Spend
+| Component | Input Tokens | Output Tokens |
+|-----------|-------------|---------------|
+| System prompt | ~6,000 | — |
+| User message + history (avg 20 msgs) | ~2,000 | — |
+| Tool schemas (12 tools) | ~1,500 | — |
+| Tool call + result (avg 1.5 tools/query) | ~500 | ~200 |
+| Agent reasoning + response | — | ~400 |
+| **Total per request** | **~10,000** | **~600** |
 
-| Category | Notes | Estimate (USD) |
-|----------|--------|----------------|
-| **API costs during development** | Anthropic Claude (Sonnet) for local runs, evals, debugging. ~50–200K input + 20–80K output tokens over project lifecycle. | $5–25 |
-| **GCP / infrastructure** | Single VM (e.g. e2-medium) for OpenEMR + agent + MySQL; ~$30–50/month if run 24/7. For dev/demo, partial month or free tier. | $0–50 (one-time demo) |
-| **LangSmith** | Tracing/history; free tier typically sufficient for dev. | $0 |
-| **Other** | No other paid AI or infra assumed. | $0 |
-| **Total development** | | **~$5–75** |
+## Per-Request Cost
+- Input: 10,000 tokens x $3/1M = **$0.03**
+- Output: 600 tokens x $15/1M = **$0.009**
+- **Total per request: ~$0.039**
 
----
+## Development Spend (Actual)
+- Eval runs (95 cases x ~5 iterations): ~475 requests = **~$18.50**
+- Manual testing during development: ~300 requests = **~$11.70**
+- Biologic flow testing (multi-turn, 5-8 messages per flow): ~200 requests = **~$7.80**
+- **Total estimated development spend: ~$38**
 
-## 2. Per-Query Cost Estimate
+## User Scaling Projections
 
-- **Model:** Claude Sonnet 4 (e.g. claude-sonnet-4-6). Pricing (approximate): **$3 / 1M input tokens**, **$15 / 1M output tokens** (see [Anthropic pricing](https://www.anthropic.com/pricing)).
-- **Typical single-turn query (with tools):**
-  - Input: system prompt (~1.5K) + user message (~50) + tool results (~0.5–2K) → **~2–4K input tokens**.
-  - Output: one response (~200–600 tokens) → **~200–600 output tokens**.
-- **Per-query estimate:**  
-  - Low: 2K in × $3/1M + 200 out × $15/1M ≈ **$0.006**.  
-  - High: 4K in × $3/1M + 600 out × $15/1M ≈ **$0.012**.  
-- **Average per query:** **~$0.008–0.01** (about 1 cent per query for typical usage).
+Assumptions: average clinic user sends 15 queries/day, 22 working days/month.
 
----
+| Users | Queries/Month | Monthly Cost | Annual Cost |
+|-------|--------------|-------------|-------------|
+| 100 | 33,000 | $1,287 | $15,444 |
+| 1,000 | 330,000 | $12,870 | $154,440 |
+| 10,000 | 3,300,000 | $128,700 | $1,544,400 |
+| 100,000 | 33,000,000 | $1,287,000 | $15,444,000 |
 
-## 3. Projections for 100 / 1,000 / 10,000 / 100,000 Concurrent Users
+## Cost Optimization Strategies
 
-Assumptions:
+**Prompt caching**: Anthropic's prompt caching could reduce input costs by ~90% for the system prompt (6,000 tokens sent every request). At 1,000 users this saves ~$7,000/month.
 
-- “Concurrent users” here = peak concurrent *sessions* that could send a request in a short window.
-- Average **queries per user per day** ≈ 5–10; peak concurrency ≈ 5–10% of daily active users.
-- One “query” = one agent turn (one LLM call + tool use + verification).
+**Model tiering**: Route simple queries (drug interactions, provider search) to Claude Haiku ($0.25/$1.25 per 1M tokens) — roughly 10x cheaper. Complex queries (biologic onboarding, multi-tool) stay on Sonnet. Estimated 70% of queries could use Haiku, reducing costs by ~60%.
 
-| Scale | Approx. daily queries | Monthly API (approx.) | Notes |
-|-------|------------------------|------------------------|--------|
-| **100 concurrent** | ~5K–20K/day | ~$1.2K–$6K | Single region, 1–2 agent replicas. |
-| **1,000 concurrent** | ~50K–200K/day | ~$12K–$60K | Multiple agent replicas, load balancer, rate limits. |
-| **10,000 concurrent** | ~500K–2M/day | ~$120K–$600K | Multi-region, reserved capacity, enterprise rate limits. |
-| **100,000 concurrent** | ~5M–20M/day | ~$1.2M–$6M | Dedicated infra, quota agreements, caching and batching. |
+**Response caching**: Common drug interaction pairs (lisinopril/ibuprofen, warfarin/aspirin) could be cached in Redis. Estimated 20-30% cache hit rate for drug interactions.
 
-*Ranges reflect low/high token usage and query volume.*
+**With all optimizations at 1,000 users**: ~$3,200/month (down from $12,870)
 
----
+## Infrastructure Costs (GCP)
+- VM (e2-small, 2 vCPU, 2GB RAM): ~$15/month
+- Persistent disk (20GB): ~$2/month
+- Network egress: ~$5/month
+- **Total infrastructure: ~$22/month**
 
-## 4. Infrastructure Scaling Assumptions
-
-- **Compute:** Agent is stateless; scale horizontally (more containers/VMs). OpenEMR and MySQL need vertical scaling and/or read replicas at higher load.
-- **Database:** MySQL for OpenEMR; agent does not persist conversation in DB by default. At 10K+ concurrent, consider connection pooling and read replicas.
-- **API rate limits:** Anthropic tier limits (RPM/TPM) will require higher tiers or reserved capacity at 1K+ concurrent.
-- **Caching:** No response caching in the current design; adding caching for common read-only tool results (e.g. drug interactions) could reduce token usage and cost.
-- **Networking:** Agent ↔ OpenEMR on same VPC or private network; no egress cost for internal traffic.
-
----
-
-## 5. Cost Optimization Strategies Considered or Implemented
-
-| Strategy | Status | Effect |
-|----------|--------|--------|
-| **Token usage tracking** | Implemented | RequestMetrics and LangSmith metadata track input/output tokens and estimated cost per request. |
-| **Model choice** | Implemented | Claude Sonnet used for quality; Haiku could be tried for simple tool-only flows to reduce cost. |
-| **Verification and tool gating** | Implemented | Reduces low-value or repeated calls by refusing low-confidence or rule-breaking responses. |
-| **Caching of tool results** | Considered | Cache read-only tool outputs (e.g. drug interaction checks) by query key to avoid duplicate LLM + tool cost. |
-| **Prompt compression** | Considered | Shorter system prompt or summarized history to lower input tokens at scale. |
-| **Reserved / committed capacity** | Considered | At 1K+ concurrent, negotiate committed throughput with Anthropic for lower unit cost. |
-| **Eval gate (80%)** | Implemented | CI prevents regressions that could increase retries or failed flows and wasted tokens. |
-
----
-
-## Summary
-
-- **Development:** on the order of **$5–75** (API + optional GCP).
-- **Per query:** **~$0.008–0.01** (typical single-turn with tools).
-- **Scale:** 100 concurrent ≈ **$1.2K–$6K/month** API; 100K concurrent ≈ **$1.2M–$6M/month** API, with infra and rate limits driving architecture.
-- **Optimization:** Tracking and gating in place; caching, model mix, and reserved capacity are the main levers for production scaling.
+## Break-Even Analysis
+At $50/user/month SaaS pricing:
+- 100 users: $5,000 revenue vs $1,309 cost = **$3,691 profit**
+- 1,000 users: $50,000 revenue vs $12,892 cost = **$37,108 profit**
