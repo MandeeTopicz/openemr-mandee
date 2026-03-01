@@ -626,14 +626,14 @@ def _run_schedule_pdf(
         }
         
         # Generate PDF
-        pdf_dir = "/var/www/localhost/htdocs/openemr/interface/modules/custom_modules/mod-ai-agent/public/pdfs"
+        pdf_dir = "/app/pdfs"
         os.makedirs(pdf_dir, exist_ok=True)
         
         filename = f"schedule_{patient_id}_{sid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         pdf_path = os.path.join(pdf_dir, filename)
         generate_schedule_pdf(patient_data, pdf_path)
         
-        url_path = f"/interface/modules/custom_modules/mod-ai-agent/public/pdfs/{filename}"
+        url_path = f"/pdfs/{filename}"
         return f"PDF generated successfully. Download link: {url_path}"
     
     except Exception as e:

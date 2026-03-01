@@ -10,6 +10,8 @@ import logging
 
 import redis
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse
+import os
 from langchain_core.messages import AIMessage, HumanMessage
 
 from app.agent.graph import invoke_graph
@@ -138,6 +140,16 @@ async def chat(request: Request):
         run_id=metrics.run_id,
         tools_used=[ToolUsed(name=t["name"], summary=t["summary"]) for t in tools_used],
     )
+
+
+@router.get("/pdfs/{filename}")
+async def serve_pdf(filename: str):
+    """Serve generated PDF files."""
+    pdf_dir = "/app/pdfs"
+    pdf_path = os.path.join(pdf_dir, filename)
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF not found")
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename)
 
 
 @router.post("/chat/feedback")

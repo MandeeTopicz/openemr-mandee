@@ -825,6 +825,11 @@ class ChatWidgetController
                 }).then(function(data) {
                     if (thinkingEl.parentNode) thinkingEl.remove();
                     var responseText = (data && data.response) ? data.response : 'No response.';
+                    // Convert PDF links to clickable download links
+                    responseText = responseText.replace(/(\/pdfs\/[\w._-]+\.pdf)/g, function(match) {
+                        var pdfUrl = chatUrl.replace('chat.php', 'pdf_proxy.php') + '?file=' + encodeURIComponent(match);
+                        return '<a href="' + pdfUrl + '" target="_blank" style="color:#1A7A73;text-decoration:underline;font-weight:bold;">Download Schedule PDF</a>';
+                    });
                     addMsg('assistant', responseText, (data && data.tools_used) ? data.tools_used : []);
                 }).catch(function() {
                     clearTimeout(fetchTimeout);
