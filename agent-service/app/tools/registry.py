@@ -5,6 +5,7 @@ Registers tools for LangGraph agent and exports tool list.
 """
 
 from langchain_core.tools import StructuredTool
+from pydantic import BaseModel, Field
 
 def _tool_error_for_llm(error: str) -> str:
     """Return tool error string for LLM. Standard (user-facing) messages as-is; others prefixed with 'Error:'."""
@@ -494,6 +495,151 @@ def _build_scheduling_tool() -> StructuredTool:
     )
 
 
+def _build_schedule_pdf_tool() -> StructuredTool:
+    return StructuredTool.from_function(
+        func=_run_schedule_pdf,
+        name="schedule_pdf",
+        description=(
+            "Generate a printable PDF of a patient's medication schedule. "
+            "Use after completing a biologic onboarding workflow. "
+            "Returns a download link to the PDF."
+        ),
+        args_schema=SchedulePdfInput,
+    )
+
+
+class SchedulePdfInput(BaseModel):
+    patient_id: int = Field(description="Patient ID")
+    schedule_id: int | None = Field(default=None, description="Schedule ID (optional, uses latest if not provided)")
+    indication: str | None = Field(default=None, description="Clinical indication e.g. Plaque Psoriasis")
+    dosing: str | None = Field(default=None, description="Dosing details e.g. 150mg subcutaneous")
+    notes: str | None = Field(default=None, description="Additional clinical notes")
+
+
+def _run_schedule_pdf(
+    patient_id: int,
+    schedule_id: int | None = None,
+    indication: str | None = None,
+    dosing: str | None = None,
+    notes: str | None = None,
+) -> str:
+    import json
+    import os
+    from datetime import datetime
+    try:
+        from app.tools.generate_schedule_pdf import generate_schedule_pdf
+        from app.clients.openemr import get_medication_schedule, get_patient_demographics
+        import httpx
+
+        # Get schedule
+        sched_data = get_medication_schedule(patient_id)
+        schedules = sched_data.get("schedules", [])
+        if not schedules:
+            return "No active schedule found for this patient."
+        
+        sched = schedules[0]
+        if schedule_id:
+            for s in schedules:
+                if s.get("id") == schedule_id:
+                    sched = s
+                    break
+        
+        sid = sched.get("id", "unknown")
+        
+        # Get actual med name from notes or protocol
+        med_name = sched.get("medication_name", "Medication")
+        sched_notes = sched.get("notes", "")
+        import re
+        m = re.search(r'Actual medication:\s*(.+)', sched_notes or "", re.I)
+        if m:
+            med_name = m.group(1).strip()
+
+        # Get patient demographics
+        demo = get_patient_demographics(patient_id)
+        pt = demo.get("patient", demo)
+        pt_name = f"{pt.get('fname', '')} {pt.get('lname', '')}".strip() or f"Patient {patient_id}"
+        dob = pt.get("DOB", pt.get("dob", ""))
+        sex = pt.get("sex", pt.get("gender", ""))
+        
+        # Calculate age
+        age = ""
+        if dob:
+            try:
+                bd = datetime.strptime(dob, "%Y-%m-%d")
+                age = str((datetime.now() - bd).days // 365)
+            except Exception:
+                pass
+        
+        # Get milestones
+        milestones = sched.get("milestones", [])
+        screenings = []
+        screening_names = {"tb_screening", "hepatitis_screening", "baseline_labs", "prior_authorization"}
+        for ms in milestones:
+            sn = ms.get("step_name", "")
+            if sn in screening_names:
+                name_map = {
+                    "tb_screening": "TB Screening (QuantiFERON)",
+                    "hepatitis_screening": "Hepatitis B/C Screening",
+                    "baseline_labs": "Baseline Labs (CBC, CMP, LFTs)",
+                    "prior_authorization": "Prior Authorization",
+                }
+                date_str = ms.get("completed_date") or ms.get("due_date", "")
+                result = "Completed" if ms.get("status") == "completed" else "Done"
+                screenings.append({"name": name_map.get(sn, sn), "date": date_str, "result": result})
+        
+        # Get appointments
+        appointments = []
+        try:
+            base = os.getenv("OPENEMR_BASE_URL", "http://openemr:80")
+            url = f"{base}/interface/modules/custom_modules/mod-ai-agent/public/appointments.php"
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.get(url, params={"action": "list_appointments", "patient_id": patient_id})
+                appt_data = resp.json()
+                for apt in appt_data.get("appointments", []):
+                    appointments.append({
+                        "visit": apt.get("pc_title", "Appointment"),
+                        "date": apt.get("pc_eventDate", ""),
+                        "time": apt.get("pc_startTime", ""),
+                        "provider": apt.get("provider_name", ""),
+                    })
+        except Exception:
+            pass
+        
+        # Build patient_data
+        patient_data = {
+            "patient_name": pt_name,
+            "patient_id": patient_id,
+            "dob": dob,
+            "age": age,
+            "sex": sex,
+            "medication": med_name,
+            "indication": indication or "",
+            "provider": sched.get("provider_name", ""),
+            "clinic_name": "Great Clinic",
+            "schedule_id": sid,
+            "start_date": sched.get("start_date", ""),
+            "dosing": dosing or "",
+            "screenings": screenings,
+            "appointments": appointments,
+            "notes": notes or "",
+            "dosing_schedule": f"{med_name}: See prescribing information for complete dosing schedule.",
+        }
+        
+        # Generate PDF
+        pdf_dir = "/var/www/localhost/htdocs/openemr/interface/modules/custom_modules/mod-ai-agent/public/pdfs"
+        os.makedirs(pdf_dir, exist_ok=True)
+        
+        filename = f"schedule_{patient_id}_{sid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = os.path.join(pdf_dir, filename)
+        generate_schedule_pdf(patient_data, pdf_path)
+        
+        url_path = f"/interface/modules/custom_modules/mod-ai-agent/public/pdfs/{filename}"
+        return f"PDF generated successfully. Download link: {url_path}"
+    
+    except Exception as e:
+        return f"Error generating PDF: {str(e)}"
+
+
 def get_tools() -> list[StructuredTool]:
     """Return list of tools for the agent."""
     return [
@@ -509,4 +655,5 @@ def get_tools() -> list[StructuredTool]:
         _build_lab_results_lookup_tool(),
         _build_medication_list_tool(),
         _build_patient_education_generator_tool(),
+        _build_schedule_pdf_tool(),
     ]
